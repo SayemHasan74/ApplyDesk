@@ -1,3 +1,9 @@
-export default function Certifications() {
-  return <div><h1 className="page-title">Certifications</h1><p className="mt-3 text-muted-foreground">Coming soon.</p></div>;
+import { getUser } from '@/lib/auth/session';
+import { listCerts } from '@/lib/data/certifications';
+import { CertificationsView } from '@/components/certifications/certifications-view';
+
+export default async function Certifications() {
+  const user = await getUser();
+  if (!user) return null;
+  return <CertificationsView initialData={await listCerts(user.userId)} />;
 }

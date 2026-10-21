@@ -1,3 +1,9 @@
-export default function Todos() {
-  return <div><h1 className="page-title">To-do</h1><p className="mt-3 text-muted-foreground">Coming soon.</p></div>;
+import { getUser } from '@/lib/auth/session';
+import { listTodos } from '@/lib/data/todos';
+import { TodosView } from '@/components/todos/todos-view';
+
+export default async function Todos() {
+  const user = await getUser();
+  if (!user) return null;
+  return <TodosView initialData={await listTodos(user.userId)} />;
 }
