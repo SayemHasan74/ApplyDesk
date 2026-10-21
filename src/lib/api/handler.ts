@@ -6,7 +6,7 @@ import { AUTH_MODES, CONTENT_TYPES } from '../constants';
 import { getEnv } from '../env';
 import { AppError } from '../errors';
 import { parseInput, readBody } from './input';
-import { checkOrigin, mapApiError } from './security';
+import { checkOrigin, mapApiError, rejectUnsafeKeys } from './security';
 
 const optionsSchema = z.object({
   auth: z.enum(AUTH_MODES),
@@ -46,8 +46,11 @@ export function withApi<B extends z.ZodType = z.ZodUndefined, Q extends z.ZodTyp
       if (Number(request.headers.get('content-length') ?? 0) > maxBytes) throw new AppError('TOO_LARGE', 'Request body is too large');
       const bodyValue = options.body || request.body !== null
         ? await readBody(request, maxBytes, options.contentTypes ?? ['json']) : undefined;
+      rejectUnsafeKeys(bodyValue);
+      const queryValue = Object.fromEntries(new URL(request.url).searchParams);
+      rejectUnsafeKeys(queryValue);
       const body = parseInput(options.body ?? z.undefined(), options.body ? bodyValue : undefined) as z.output<B>;
-      const query = parseInput(options.query ?? z.undefined(), options.query ? Object.fromEntries(new URL(request.url).searchParams) : undefined) as z.output<Q>;
+      const query = parseInput(options.query ?? z.undefined(), options.query ? queryValue : undefined) as z.output<Q>;
       const result = await handler({ user, body, query, request, params: await (context?.params ?? Promise.resolve({})), requestId });
       if (result instanceof Response) {
         if (result.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {

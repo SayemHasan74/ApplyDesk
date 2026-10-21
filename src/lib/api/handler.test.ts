@@ -87,3 +87,22 @@ it('hides internal AppError details and rejects mislabeled invalid JSON', async 
   const invalid = withApi({ auth: 'none' }, () => new Response('invalid', { headers: { 'content-type': 'application/json' } }));
   expect((await invalid(new Request('https://app.example'))).status).toBe(500);
 });
+
+it('rejects unsafe body and query keys even when no schema is supplied', async () => {
+  const handler = vi.fn(() => ({}));
+  const route = withApi({ auth: 'none' }, handler);
+  expect((await route(post('{"nested":{"$set":{"role":"admin"}}}'))).status).toBe(400);
+  expect((await route(new Request('https://app.example?settings.role=admin'))).status).toBe(400);
+  expect(handler).not.toHaveBeenCalled();
+});
+
+it('parses multipart fields and files with an explicit allowlist', async () => {
+  const route = withApi({ auth: 'none', contentTypes: ['multipart'], body: z.object({ title: z.string().max(200), file: z.file().max(100) }).strict() },
+    async ({ body }) => ({ title: body.title, text: await body.file.text() }));
+  const form = new FormData();
+  form.set('title', 'Attachment');
+  form.set('file', new File(['contents'], 'note.txt', { type: 'text/plain' }));
+  const response = await route(new Request('https://app.example', { method: 'POST', body: form, headers: { origin: 'https://app.example' } }));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ ok: true, data: { title: 'Attachment', text: 'contents' } });
+});
