@@ -58,3 +58,32 @@ it('returns a generic 500 and logs only its code and request id', async () => {
   expect(response.headers.get('cache-control')).toBe('no-store');
   expect(log).toHaveBeenCalledWith('[INTERNAL]', expect.stringMatching(/^[a-f0-9-]{36}$/));
 });
+
+it('rejects non-JSON handler responses rather than returning plain text', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  const route = withApi({ auth: 'none' }, () => new Response('private text'));
+  const response = await route(new Request('https://app.example'));
+  expect(response.status).toBe(500);
+  expect(await response.json()).toMatchObject({ ok: false, error: { code: 'INTERNAL' } });
+});
+
+it('allows a bodyless mutation when no body schema is specified', async () => {
+  const route = withApi({ auth: 'none' }, ({ body }) => ({ receivedBody: body === undefined }));
+  const response = await route(new Request('https://app.example', { method: 'POST', headers: { origin: 'https://app.example' } }));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ ok: true, data: { receivedBody: true } });
+});
+
+it('keeps the success envelope complete for handlers returning undefined', async () => {
+  const route = withApi({ auth: 'none' }, () => undefined);
+  expect(await (await route(new Request('https://app.example'))).json()).toEqual({ ok: true, data: null });
+});
+
+it('hides internal AppError details and rejects mislabeled invalid JSON', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  const route = withApi({ auth: 'none' }, () => { throw new AppError('INTERNAL', 'private connection details'); });
+  const response = await route(new Request('https://app.example'));
+  expect(await response.json()).toEqual({ ok: false, error: { code: 'INTERNAL', message: 'An unexpected error occurred' } });
+  const invalid = withApi({ auth: 'none' }, () => new Response('invalid', { headers: { 'content-type': 'application/json' } }));
+  expect((await invalid(new Request('https://app.example'))).status).toBe(500);
+});

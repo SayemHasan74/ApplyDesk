@@ -10,6 +10,12 @@ import { ChatMessage } from './chat-messages';
 import { Counter } from './counters';
 
 const userId = '0123456789abcdef01234567';
+it.each(['2026-02-30T10:00:00+06:00', '2026-10-21T24:00:00+06:00', '2026-10-21T10:00:00'])('rejects invalid interview timestamp %s', async (interviewAt) => {
+  await expect(new Job({ userId, company: 'C', role: 'R', dedupeKey: 'c|r', interviewAt }).validate()).rejects.toThrow();
+});
+it.each(['2024-02-29T10:30:00+06:00', '2026-10-21T10:00:00Z'])('accepts valid interview timestamp %s', async (interviewAt) => {
+  await expect(new Job({ userId, company: 'C', role: 'R', dedupeKey: 'c|r', interviewAt }).validate()).resolves.toBeUndefined();
+});
 it('sets domain defaults, nulls and separate nested values', async () => {
   const job = new Job({ userId, company: 'Company', role: 'Engineer', dedupeKey: 'company|engineer' });
   await expect(job.validate()).resolves.toBeUndefined();

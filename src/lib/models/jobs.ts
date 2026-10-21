@@ -1,5 +1,6 @@
 import { Schema, model, models, type InferSchemaType, type Model } from 'mongoose';
 import { COMP_STATUSES, JOB_STATUSES, JOB_TYPES, WORK_MODES } from '../constants';
+import { z } from 'zod';
 import { dateOnly, modelOptions, nullableText, requiredText, stringList, tenantFields, trackedFields, ttlIndex } from './fields';
 
 const schema = new Schema({
@@ -13,7 +14,7 @@ const schema = new Schema({
   descriptionSummary: nullableText(4000), requirements: stringList(4000), eligibility: nullableText(4000),
   status: { type: String, enum: JOB_STATUSES, default: 'saved' },
   appliedAt: dateOnly(),
-  interviewAt: { ...nullableText(), validate: { validator: (value: string | null) => value === null || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) && Number.isFinite(Date.parse(value)), message: 'Invalid ISO datetime with offset' } },
+  interviewAt: { ...nullableText(), validate: { validator: (value: string | null) => value === null || z.iso.datetime({ offset: true }).safeParse(value).success, message: 'Invalid ISO datetime with offset' } },
   gmailThreadIds: stringList(120),
 }, modelOptions);
 schema.index({ userId: 1, dedupeKey: 1 }, { unique: true });

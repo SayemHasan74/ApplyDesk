@@ -27,6 +27,6 @@ export function rejectUnsafeKeys(value: unknown): void {
 }
 
 export function mapApiError(error: unknown) {
-  if (error instanceof AppError) return { status: error.status, error: { code: error.code, message: error.message } };
+  if (error instanceof AppError && error.status < 500) return { status: error.status, error: { code: error.code, message: error.message } };
   return { status: 500, error: { code: 'INTERNAL', message: 'An unexpected error occurred' } };
 }

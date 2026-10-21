@@ -17,7 +17,7 @@ it.each<HeadersInit>([
 it('maps every known error and hides unexpected details', () => {
   for (const [code, status] of Object.entries(ERROR_STATUSES)) {
     const error = new AppError(code as keyof typeof ERROR_STATUSES, 'Public message');
-    expect(mapApiError(error)).toEqual({ status, error: { code, message: 'Public message' } });
+    expect(mapApiError(error)).toEqual({ status, error: { code, message: status === 500 ? 'An unexpected error occurred' : 'Public message' } });
   }
   expect(mapApiError(new Error('secret database URI'))).toEqual({ status: 500, error: { code: 'INTERNAL', message: 'An unexpected error occurred' } });
 });

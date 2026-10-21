@@ -1,3 +1,4 @@
+import 'server-only';
 import mongoose from 'mongoose';
 import { connectDb } from '../src/lib/db';
 import { envSchema } from '../src/lib/env';
