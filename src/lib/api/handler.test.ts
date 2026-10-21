@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 vi.mock('server-only', () => ({}));
-const mocks = vi.hoisted(() => ({ getUser: vi.fn() }));
-vi.mock('../auth/session', () => ({ getUser: mocks.getUser }));
+const mocks = vi.hoisted(() => ({ getUser: vi.fn(), requireAdmin: vi.fn() }));
+vi.mock('../auth/session', () => ({ getUser: mocks.getUser, requireAdmin: mocks.requireAdmin }));
 vi.mock('../env', () => ({ getEnv: () => ({ CRON_SECRET: 'cron-secret' }) }));
 import { withApi, ok } from './handler';
 import { AppError } from '../errors';
@@ -10,7 +10,7 @@ import { AppError } from '../errors';
 const post = (body: string, headers: Record<string, string> = {}) => new Request('https://app.example/api/test', {
   method: 'POST', body, headers: { origin: 'https://app.example', 'content-type': 'application/json', ...headers },
 });
-beforeEach(() => { mocks.getUser.mockReset(); });
+beforeEach(() => { mocks.getUser.mockReset(); mocks.requireAdmin.mockReset(); });
 afterEach(() => vi.restoreAllMocks());
 it('checks origin before authentication, and authentication before parsing', async () => {
   const handler = vi.fn();
@@ -19,6 +19,14 @@ it('checks origin before authentication, and authentication before parsing', asy
   expect(mocks.getUser).not.toHaveBeenCalled();
   mocks.getUser.mockRejectedValue(new AppError('UNAUTHENTICATED', 'Sign in required'));
   expect((await route(post('not-json'))).status).toBe(401);
+  expect(handler).not.toHaveBeenCalled();
+});
+it('rejects null sessions and enforces the admin role before running the handler', async () => {
+  const handler = vi.fn();
+  mocks.getUser.mockResolvedValue(null);
+  expect((await withApi({ auth: 'user' }, handler)(new Request('https://app.example'))).status).toBe(401);
+  mocks.requireAdmin.mockRejectedValue(new AppError('FORBIDDEN', 'Administrator access required'));
+  expect((await withApi({ auth: 'user', role: 'admin' }, handler)(new Request('https://app.example'))).status).toBe(403);
   expect(handler).not.toHaveBeenCalled();
 });
 it('parses strict body/query schemas and awaits route params', async () => {

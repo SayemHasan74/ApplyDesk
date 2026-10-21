@@ -1,10 +1,28 @@
 import 'server-only';
-import { z } from 'zod';
-import { ROLES } from '../constants';
+import { cache } from 'react';
+import { auth } from '@/auth';
+import { currentUserSchema, isActiveSession } from './policy';
 import { AppError } from '../errors';
 
-export const userSchema = z.object({ id: z.string().regex(/^[a-f0-9]{24}$/), role: z.enum(ROLES), name: z.string().max(120), email: z.email().max(254).optional() }).strict();
+export const getUser = cache(async () => {
+  const session = await auth();
+  if (!session || !isActiveSession(session)) return null;
+  const result = currentUserSchema.safeParse({
+    userId: session.user.userId, role: session.user.role,
+    name: session.user.name || (session.user.role === 'demo' ? 'Demo visitor' : 'Owner'),
+    email: session.user.email ?? undefined,
+  });
+  return result.success ? result.data : null;
+});
 
-export async function getUser(): Promise<z.infer<typeof userSchema>> {
-  throw new AppError('UNAUTHENTICATED', 'Sign in required');
+export async function requireUser() {
+  const user = await getUser();
+  if (!user) throw new AppError('UNAUTHENTICATED', 'Sign in required');
+  return user;
+}
+
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== 'admin') throw new AppError('FORBIDDEN', 'Administrator access required');
+  return user;
 }

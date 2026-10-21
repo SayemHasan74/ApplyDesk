@@ -1,7 +1,7 @@
 import 'server-only';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
-import { getUser } from '../auth/session';
+import { getUser, requireAdmin } from '../auth/session';
 import { AUTH_MODES, CONTENT_TYPES } from '../constants';
 import { getEnv } from '../env';
 import { AppError } from '../errors';
@@ -10,6 +10,7 @@ import { checkOrigin, mapApiError, rejectUnsafeKeys } from './security';
 
 const optionsSchema = z.object({
   auth: z.enum(AUTH_MODES),
+  role: z.literal('admin').optional(),
   contentTypes: z.array(z.enum(CONTENT_TYPES)).optional(),
   maxBodyBytes: z.number().int().positive().optional(),
 }).strict();
@@ -19,8 +20,13 @@ export function ok<T>(data: T, status = 200) {
   return Response.json({ ok: true, data: data ?? null }, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
-async function authenticate(mode: typeof AUTH_MODES[number], request: Request) {
-  if (mode === 'user') return getUser();
+async function authenticate(mode: typeof AUTH_MODES[number], request: Request, role?: 'admin') {
+  if (mode === 'user') {
+    if (role === 'admin') return requireAdmin();
+    const user = await getUser();
+    if (!user) throw new AppError('UNAUTHENTICATED', 'Sign in required');
+    return user;
+  }
   if (mode === 'cron') {
     const actual = Buffer.from(request.headers.get('x-cron-secret') ?? '');
     const expected = Buffer.from(getEnv().CRON_SECRET);
@@ -36,12 +42,13 @@ export function withApi<B extends z.ZodType = z.ZodUndefined, Q extends z.ZodTyp
     request: Request; params: Awaited<RouteContext['params']>; requestId: string;
   }) => unknown | Promise<unknown>,
 ) {
-  optionsSchema.parse({ auth: options.auth, contentTypes: options.contentTypes, maxBodyBytes: options.maxBodyBytes });
+  optionsSchema.parse({ auth: options.auth, role: options.role, contentTypes: options.contentTypes, maxBodyBytes: options.maxBodyBytes });
+  if (options.role && options.auth !== 'user') throw new Error('Role restrictions require user authentication');
   return async (request: Request, context?: RouteContext) => {
     const requestId = randomUUID();
     try {
       if (request.method !== 'GET' && options.auth !== 'cron') checkOrigin(request);
-      const user = await authenticate(options.auth, request);
+      const user = await authenticate(options.auth, request, options.role);
       const maxBytes = options.maxBodyBytes ?? 100 * 1024;
       if (Number(request.headers.get('content-length') ?? 0) > maxBytes) throw new AppError('TOO_LARGE', 'Request body is too large');
       const bodyValue = options.body || request.body !== null
