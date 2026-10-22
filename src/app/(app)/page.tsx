@@ -3,6 +3,7 @@ import { getUser } from '@/lib/auth/session';
 import { listJobs } from '@/lib/data/jobs';
 import { listCerts } from '@/lib/data/certifications';
 import { listTodos } from '@/lib/data/todos';
+import { countSuggestions } from '@/lib/data/suggestions';
 import { todayDhaka } from '@/lib/dates';
 import { jobsSummary } from '@/lib/jobs/view';
 import { certsSummary } from '@/lib/certifications/view';
@@ -13,7 +14,7 @@ import { ExpandableText } from '@/components/ui/expandable-text';
 export default async function Dashboard() {
   const user = await getUser();
   if (!user) return null;
-  const [jobs, certs, todos] = await Promise.all([listJobs(user.userId), listCerts(user.userId), listTodos(user.userId)]);
+  const [jobs, certs, todos, inbox] = await Promise.all([listJobs(user.userId), listCerts(user.userId), listTodos(user.userId), user.role === 'admin' ? countSuggestions(user.userId) : Promise.resolve(0)]);
   const today = todayDhaka();
   const summary = jobsSummary(jobs, today);
   const certifications = certsSummary(certs, today);
@@ -33,6 +34,7 @@ export default async function Dashboard() {
       {tiles.map(({ label, count, href, urgent }) => <Link key={label} href={href} prefetch={false} className="panel px-5 py-5 transition-colors hover:bg-secondary">
         <span className={`block text-3xl font-semibold tabular-nums ${urgent && count > 0 ? 'text-destructive' : ''}`}>{count}</span><span className="mt-2 block text-sm text-muted-foreground">{label}</span>
       </Link>)}
+      {inbox > 0 && <Link href="/inbox" prefetch={false} className="panel px-5 py-5 transition-colors hover:bg-secondary"><span className="block text-3xl font-semibold tabular-nums">{inbox}</span><span className="mt-2 block text-sm text-muted-foreground">Inbox ({inbox})</span></Link>}
     </div>
     <DeadlineLists jobs={summary.closest} certs={certifications.closest} today={today} />
     <section className="panel px-5 py-5 sm:px-6" aria-labelledby="todays-todos"><div className="flex items-center justify-between gap-4"><h2 id="todays-todos" className="text-xl font-semibold">Today&apos;s to-dos</h2><Link href="/todos" prefetch={false} className="min-h-11 py-3 text-sm underline">Open list</Link></div>

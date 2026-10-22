@@ -15,9 +15,11 @@ const schema = new Schema({
     refreshTokenEnc: { type: String, default: null },
     connectedAt: { type: Date, default: null },
     lastSyncAt: { type: Date, default: null },
+    syncLeaseUntil: { type: Date, default: undefined },
   },
   demoAiUsed: { type: Number, default: 0, min: 0 },
 }, modelOptions);
 ttlIndex(schema);
+schema.index({ role: 1 });
 export type UserDocument = InferSchemaType<typeof schema>;
 export const User = (models.User as Model<UserDocument> | undefined) ?? model('User', schema);

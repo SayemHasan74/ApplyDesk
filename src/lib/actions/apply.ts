@@ -11,11 +11,12 @@ import { actionTransaction } from './transaction';
 import { createActionState, type ActionState } from './state';
 import { actionFailure, isDatabaseError, isTransientTransactionError, ItemDatabaseError, writeAction } from './errors';
 import { writeEntity } from './write-entity';
+import { writeSuggestion } from './write-suggestion';
 
 async function applyItem(item: ActionItem, state: ActionState, index: number): Promise<AuditWrite[]> {
   if (item.kind !== 'setting' && item.kind !== 'suggestion') return writeEntity(item, state, index);
   if (state.user.role !== 'admin') throw new AppError('FORBIDDEN', 'Administrator access required');
-  if (item.kind === 'suggestion') throw new AppError('VALIDATION', 'Suggestions cannot be applied in this step');
+  if (item.kind === 'suggestion') return writeSuggestion(item, state, index);
   const before = await getSettings(state.user.userId, state.session);
   const patch = item.key === 'groundingEnabled' ? { groundingEnabled: item.value } : { aiDailyLimit: item.value };
   const after = await writeAction(index, () => updateSettings(state.user.userId, patch, state.session));

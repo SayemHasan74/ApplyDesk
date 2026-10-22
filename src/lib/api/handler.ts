@@ -13,6 +13,8 @@ const optionsSchema = z.object({
   role: z.literal('admin').optional(),
   contentTypes: z.array(z.enum(CONTENT_TYPES)).optional(),
   maxBodyBytes: z.number().int().positive().optional(),
+  redirects: z.boolean().optional(),
+  errorRedirect: z.literal('/settings?gmail=error').optional(),
 }).strict();
 type RouteContext = { params: Promise<Record<string, string | string[]>> };
 
@@ -42,7 +44,7 @@ export function withApi<B extends z.ZodType = z.ZodUndefined, Q extends z.ZodTyp
     request: Request; params: Awaited<RouteContext['params']>; requestId: string;
   }) => unknown | Promise<unknown>,
 ) {
-  optionsSchema.parse({ auth: options.auth, role: options.role, contentTypes: options.contentTypes, maxBodyBytes: options.maxBodyBytes });
+  optionsSchema.parse({ auth: options.auth, role: options.role, contentTypes: options.contentTypes, maxBodyBytes: options.maxBodyBytes, redirects: options.redirects, errorRedirect: options.errorRedirect });
   if (options.role && options.auth !== 'user') throw new Error('Role restrictions require user authentication');
   return async (request: Request, context?: RouteContext) => {
     const requestId = randomUUID();
@@ -60,6 +62,9 @@ export function withApi<B extends z.ZodType = z.ZodUndefined, Q extends z.ZodTyp
       const query = parseInput(options.query ?? z.undefined(), options.query ? queryValue : undefined) as z.output<Q>;
       const result = await handler({ user, body, query, request, params: await (context?.params ?? Promise.resolve({})), requestId });
       if (result instanceof Response) {
+        if (options.redirects && [302, 303, 307].includes(result.status) && result.headers.has('Location')) {
+          result.headers.set('Cache-Control', 'no-store'); return result;
+        }
         if (result.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
           throw new Error('API handlers must return JSON');
         }
@@ -70,6 +75,7 @@ export function withApi<B extends z.ZodType = z.ZodUndefined, Q extends z.ZodTyp
       }
       return ok(result);
     } catch (error) {
+      if (options.errorRedirect) return new Response(null, { status: 303, headers: { Location: options.errorRedirect, 'Cache-Control': 'no-store', 'Set-Cookie': 'gmail_oauth_state=; Path=/api/gmail; HttpOnly; SameSite=Lax; Max-Age=0' } });
       const mapped = mapApiError(error);
       if (mapped.status >= 500) console.error('[INTERNAL]', requestId);
       return Response.json({ ok: false, error: mapped.error }, { status: mapped.status, headers: { 'Cache-Control': 'no-store' } });

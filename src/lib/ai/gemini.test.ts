@@ -18,6 +18,13 @@ it('uses JSON mode, disables implicit retries/continuations, deduplicates source
   expect(config).toMatchObject({ temperature: 0.1, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 }, responseMimeType: 'application/json', httpOptions: { retryOptions: { attempts: 1 } }, automaticContinuation: false });
   expect(mocks.reserve.mock.invocationCallOrder[0]).toBeLessThan(mocks.generate.mock.invocationCallOrder[0]);
 });
+it('makes only one provider call for Gmail and uses its supplied reservation on provider failure', async () => {
+  const reserve = vi.fn().mockResolvedValue(undefined);
+  mocks.generate.mockRejectedValue(Object.assign(new Error('busy'), { status: 503 }));
+  await expect(callGemini({ ...input, singleAttempt: true, reserve })).rejects.toThrow();
+  expect(mocks.generate).toHaveBeenCalledTimes(1); expect(reserve).toHaveBeenCalledTimes(1); expect(mocks.reserve).not.toHaveBeenCalled();
+  expect(mocks.generate.mock.calls[0][0].config).not.toHaveProperty('thinkingConfig');
+});
 it('uses search tools without JSON mode, reserves thinking and fallback retries individually', async () => {
   mocks.generate.mockRejectedValueOnce(Object.assign(new Error('thinkingConfig unsupported'), { status: 400 }))
     .mockRejectedValueOnce(Object.assign(new Error('busy'), { status: 503 })).mockResolvedValue({ text: '{}', candidates: [] });

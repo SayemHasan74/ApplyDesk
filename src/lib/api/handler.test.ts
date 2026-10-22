@@ -12,6 +12,15 @@ const post = (body: string, headers: Record<string, string> = {}) => new Request
 });
 beforeEach(() => { mocks.getUser.mockReset(); mocks.requireAdmin.mockReset(); });
 afterEach(() => vi.restoreAllMocks());
+it('allows explicit OAuth redirects with no-store and clears state on callback authentication failures', async () => {
+  const route = withApi({ auth: 'none', redirects: true }, () => new Response(null, { status: 302, headers: { Location: 'https://accounts.google.com/o/oauth2/v2/auth' } }));
+  const response = await route(new Request('https://app.example'));
+  expect(response.status).toBe(302); expect(response.headers.get('cache-control')).toBe('no-store');
+  mocks.requireAdmin.mockRejectedValue(new AppError('FORBIDDEN', 'Private information'));
+  const callback = withApi({ auth: 'user', role: 'admin', redirects: true, errorRedirect: '/settings?gmail=error' }, () => ({}));
+  const failure = await callback(new Request('https://app.example/api/gmail/callback?state=x'));
+  expect(failure.status).toBe(303); expect(failure.headers.get('location')).toBe('/settings?gmail=error'); expect(failure.headers.get('set-cookie')).toContain('Max-Age=0'); expect(await failure.text()).toBe('');
+});
 it('checks origin before authentication, and authentication before parsing', async () => {
   const handler = vi.fn();
   const route = withApi({ auth: 'user', body: z.object({}).strict() }, handler);

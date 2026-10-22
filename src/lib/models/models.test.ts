@@ -48,7 +48,7 @@ it('declares absolute TTL indexes and prevents automatic index creation', () => 
   }
   expect(Job.schema.indexes()).toContainEqual([{ userId: 1, dedupeKey: 1 }, { unique: true }]);
   expect(Certification.schema.indexes()).toContainEqual([{ userId: 1, dedupeKey: 1 }, { unique: true }]);
-  expect(Suggestion.schema.indexes()).toContainEqual([{ userId: 1, gmailMessageId: 1, type: 1 }, { unique: true }]);
+  expect(Suggestion.schema.indexes()).toContainEqual([{ userId: 1, gmailMessageId: 1, type: 1, suggestionKey: 1 }, { unique: true }]);
   expect(ProcessedEmail.schema.indexes()).toContainEqual([{ userId: 1, gmailMessageId: 1 }, { unique: true }]);
 });
 it('sets retention periods as expiration dates and keeps email uniqueness sparse', () => {

@@ -1,5 +1,5 @@
 import { ExpandableText } from '@/components/ui/expandable-text';
-import { fieldLabel } from '@/lib/client/proposal-form';
+import { fieldLabel } from '@/lib/client/field-label';
 
 export function ProposalValue({ value }: { value: unknown }) {
   if (value === null || value === undefined || value === '' || value === 'unknown' || (Array.isArray(value) && !value.length)) return <span className="italic text-[var(--warning-text)]">Not found</span>;

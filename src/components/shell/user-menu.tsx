@@ -13,6 +13,7 @@ export function UserMenu({ user, chevron }: { user: CurrentUser; chevron: React.
     <div className="absolute right-0 z-50 mt-2 w-56 rounded border bg-card p-3 shadow-md">
       <p className="break-words text-sm font-semibold">{user.name}<span className="mt-1 block text-xs font-normal text-muted-foreground">{user.email}</span></p>
       <span className="my-2 inline-flex rounded border px-2 py-0.5 text-xs capitalize">{user.role}</span>
+      {user.role === 'admin' && <Link href="/inbox" prefetch={false} className="block min-h-11 border-t py-3 text-sm underline" onClick={() => { if (ref.current) ref.current.open = false; }}>Inbox</Link>}
       {user.role === 'admin' && <Link href="/settings" prefetch={false} className="block min-h-11 border-t py-3 text-sm underline" onClick={() => { if (ref.current) ref.current.open = false; }}>Settings</Link>}
       <form action={signOutAction} className="border-t pt-2"><SubmitButton>Sign out</SubmitButton></form>
     </div>

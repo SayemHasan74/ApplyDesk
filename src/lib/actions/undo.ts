@@ -19,6 +19,7 @@ async function revertRow(state: ActionState, row: UndoRow) {
     await updateSettings(user.userId, patch, session);
     return true;
   }
+  if (row.entity === 'suggestion' && user.role !== 'admin') throw new AppError('FORBIDDEN', 'Administrator access required');
   const model = entityStore(row.entity);
   const filter = { _id: row.docId, userId: user.userId };
   if (row.op === 'create') {

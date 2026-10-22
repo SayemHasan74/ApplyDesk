@@ -75,7 +75,7 @@ it('enforces notes limits and admin-only kinds while keeping the rest of a demo 
   expect(result.results.map((row) => row.ok ? 'OK' : row.error.code)).toEqual(['FORBIDDEN', 'FORBIDDEN', 'VALIDATION', 'OK']);
   expect(harness.rows('todo', {})[0]).toHaveProperty('expiresAt', demoExpiry);
   const adminResult = await applyActions(owner, { items: [{ kind: 'suggestion', id: 'c'.repeat(24), decision: 'dismiss' }] });
-  expect(adminResult.results[0]).toMatchObject({ ok: false, error: { code: 'VALIDATION' } });
+  expect(adminResult.results[0]).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } });
 });
 it('caps demo documents at 150 across all collections and frees capacity after a deletion in the same batch', async () => {
   const todo = harness.seed('todo', { title: 'Delete me' }, visitor.userId);

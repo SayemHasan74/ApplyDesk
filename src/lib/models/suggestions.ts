@@ -9,11 +9,12 @@ const schema = new Schema({
   gmailMessageId: requiredText(), gmailThreadId: requiredText(),
   emailSubject: requiredText(4000), emailFrom: requiredText(254), emailDate: { type: Date, required: true },
   payload: { type: Schema.Types.Mixed, required: true },
+  suggestionKey: { type: String, default: undefined, maxlength: 64 },
   confidence: { type: String, enum: PRIORITIES, required: true },
   state: { type: String, enum: SUGGESTION_STATES, default: 'pending' },
 }, modelOptions);
 schema.index({ userId: 1, state: 1 });
-schema.index({ userId: 1, gmailMessageId: 1, type: 1 }, { unique: true });
+schema.index({ userId: 1, gmailMessageId: 1, type: 1, suggestionKey: 1 }, { unique: true });
 ttlIndex(schema);
 export type SuggestionDocument = InferSchemaType<typeof schema>;
 export const Suggestion = (models.Suggestion as Model<SuggestionDocument> | undefined) ?? model('Suggestion', schema);

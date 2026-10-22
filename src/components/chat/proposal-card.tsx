@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { ExpandableText } from '@/components/ui/expandable-text';
 import { duplicateUpdate, toApplyItem, type ReviewEntry } from '@/lib/client/ai-client';
-import { fieldLabel } from '@/lib/client/proposal-form';
+import { fieldLabel } from '@/lib/client/field-label';
 import { ProposalFields, ProposalValue, SourceLinks } from './proposal-fields';
 import { ProposalEditor } from './proposal-editor';
 
@@ -11,8 +11,7 @@ export function ProposalCard({ entry, pending, onChange, onConfirm }: {
 }) {
   const p = entry.proposal;
   let valid = false;
-  try { valid = Boolean(toApplyItem(entry)) || p.kind === 'undo_last'; } catch { valid = false; }
-  const unavailable = p.kind === 'run_sync_gmail' || p.kind === 'suggestion';
+  try { valid = Boolean(toApplyItem(entry)) || p.kind === 'undo_last' || p.kind === 'run_sync_gmail'; } catch { valid = false; }
   const title = p.kind === 'create' ? `New ${p.entity === 'todo' ? 'to-do' : p.entity}` : 'label' in p ? p.label : p.kind.replaceAll('_', ' ');
   const route = 'entity' in p ? p.entity === 'job' ? '/jobs' : p.entity === 'certification' ? '/certifications' : '/todos' : '/';
   if (entry.discarded) return <div className="border-l-2 pl-3 text-xs text-muted-foreground">Proposal discarded</div>;
@@ -38,8 +37,8 @@ export function ProposalCard({ entry, pending, onChange, onConfirm }: {
     {p.kind === 'undo_last' && <p className="mt-2 text-xs">Revert your most recent action batch.</p>}
     {p.kind === 'suggestion' && <p className="mt-2 text-xs">{p.decision === 'accept' ? 'Accept' : 'Dismiss'} this Gmail suggestion.</p>}
     {entry.error && <p role="alert" className="mt-3 text-xs text-destructive">{entry.error}</p>}
-    {entry.saved ? <p role="status" className="mt-3 text-sm font-semibold text-[var(--success-text)]">{p.kind === 'undo_last' ? 'Reverted' : 'Saved'}</p> : <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3">
-      <button type="button" className="action-button text-xs" disabled={pending || !valid || unavailable} onClick={() => onConfirm(entry)}>{pending ? 'Saving…' : p.kind === 'run_sync_gmail' ? 'Gmail sync is not set up yet' : 'Confirm'}</button>
+    {entry.saved ? <p role="status" className="mt-3 text-sm font-semibold text-[var(--success-text)]">{p.kind === 'undo_last' ? 'Reverted' : p.kind === 'run_sync_gmail' ? 'Synced' : 'Saved'}</p> : <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3">
+      <button type="button" className="action-button text-xs" disabled={pending || !valid} onClick={() => onConfirm(entry)}>{pending ? 'Saving…' : p.kind === 'run_sync_gmail' ? 'Sync Gmail' : 'Confirm'}</button>
       {p.kind === 'create' && <button type="button" className="chat-secondary" disabled={pending || (entry.editing && entry.invalid)} onClick={() => onChange({ ...entry, editing: !entry.editing })}>{entry.editing ? 'Review' : 'Edit'}</button>}
       <button type="button" className="chat-secondary" disabled={pending} onClick={() => onChange({ ...entry, discarded: true })}>Discard</button>
     </div>}

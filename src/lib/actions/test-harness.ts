@@ -6,12 +6,13 @@ import { Certification } from '../models/certifications';
 import { Todo } from '../models/todos';
 import { ActionLog } from '../models/action-logs';
 import { User } from '../models/users';
+import { Suggestion } from '../models/suggestions';
 import { clone, matches, testQuery, type TestDocument } from './test-query';
 
 export const owner = { userId: 'a'.repeat(24), role: 'admin' as const, name: 'Owner' };
 export const visitor = { userId: 'b'.repeat(24), role: 'demo' as const, name: 'Visitor' };
 export const demoExpiry = new Date('2099-01-01');
-const models = { job: Job, certification: Certification, todo: Todo, logs: ActionLog, users: User };
+const models = { job: Job, certification: Certification, todo: Todo, logs: ActionLog, users: User, suggestion: Suggestion };
 type Collection = keyof typeof models;
 type Database = Record<Collection, Map<string, TestDocument>>;
 const duplicate = () => Object.assign(new Error('Database duplicate details must stay private'), { code: 11000 });
@@ -52,6 +53,7 @@ function installModelMocks(kind: Collection, model: Model<TestDocument>, hooks: 
   }) as unknown as typeof model.replaceOne);
   vi.spyOn(model, 'updateOne').mockImplementation((async (filter: TestDocument, update: TestDocument) => {
     const found = rows(kind, filter)[0];
+    if (found && update.$set) Object.assign(found, update.$set);
     if (found && update.$inc) for (const [key, value] of Object.entries(update.$inc as TestDocument)) found[key] = Number(found[key] ?? 0) + Number(value);
     return { acknowledged: true, matchedCount: found ? 1 : 0 };
   }) as unknown as typeof model.updateOne);
@@ -68,7 +70,7 @@ function installModelMocks(kind: Collection, model: Model<TestDocument>, hooks: 
   }) as unknown as typeof model.findOneAndUpdate);
 }
 export function createHarness() {
-  let database: Database = { job: new Map(), certification: new Map(), todo: new Map(), logs: new Map(), users: new Map() };
+  let database: Database = { job: new Map(), certification: new Map(), todo: new Map(), logs: new Map(), users: new Map(), suggestion: new Map() };
   const controls = { failAudit: false, transactions: 0 };
   const rows = (kind: Collection, filter: TestDocument) => [...database[kind].values()].filter((row) => matches(row, filter));
   const put = (kind: Collection, value: TestDocument) => {
@@ -88,7 +90,7 @@ export function createHarness() {
   }, endSession: vi.fn().mockResolvedValue(undefined) };
   for (const kind of Object.keys(models) as Collection[]) installModelMocks(kind, models[kind] as unknown as Model<TestDocument>, { rows, put, replace, controls, table: (name) => database[name] });
   for (const user of [owner, visitor]) put('users', { _id: new Types.ObjectId(user.userId), role: user.role, name: user.name, settings: { groundingEnabled: true, aiDailyLimit: 18 }, expiresAt: demoExpiry });
-  const seed = (entity: Entity, values: TestDocument, userId = owner.userId) => {
+  const seed = (entity: Entity | 'suggestion', values: TestDocument, userId = owner.userId) => {
     const now = new Date('2026-10-20T01:02:03.000Z');
     const model = models[entity] as unknown as Model<TestDocument>;
     const document = new model({ userId, _id: new Types.ObjectId(), __v: 0, createdAt: now, updatedAt: now, ...values }).toObject({ flattenMaps: true });

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { Proposal } from '@/lib/client/ai-contract';
 import { reviewEntry, confirmableEntries, type ReviewEntry } from '@/lib/client/ai-client';
@@ -10,10 +10,25 @@ import { ProposalCard } from './proposal-card';
 export function ProposalList({ proposals, actions, sending }: { proposals: Proposal[]; actions: ReturnType<typeof useChatActions>; sending: boolean }) {
   const [entries, setEntries] = useState(() => proposals.map(reviewEntry));
   const pending = actions.pending || sending;
-  const applicable = confirmableEntries(entries).filter(({ item }) => item.kind !== 'suggestion');
+  const applicable = confirmableEntries(entries);
+  const started = useRef(false);
+  useEffect(() => {
+    if (pending || started.current) return;
+    const gmail = entries.filter((entry) => entry.proposal.kind === 'run_sync_gmail');
+    if (!gmail.length) return; started.current = true;
+    void actions.sync().then((result) => {
+      if (result) setEntries((old) => old.map((entry) => entry.proposal.kind === 'run_sync_gmail' ? { ...entry, saved: true } : entry));
+    }).catch((error: unknown) => {
+      const message = chatError(error); toast.error(message);
+      setEntries((old) => old.map((entry) => entry.proposal.kind === 'run_sync_gmail' ? { ...entry, error: message } : entry));
+    });
+  }, [actions, entries, pending]);
   function change(entry: ReviewEntry) { setEntries((old) => old.map((value) => value.proposal.id === entry.proposal.id ? entry : value)); }
   async function confirm(selected: ReviewEntry[]) {
     try {
+      if (selected.length === 1 && selected[0].proposal.kind === 'run_sync_gmail') {
+        const result = await actions.sync(); if (result) change({ ...selected[0], saved: true, error: undefined }); return;
+      }
       if (selected.length === 1 && selected[0].proposal.kind === 'undo_last') {
         const result = await actions.undo(); if (result) change({ ...selected[0], saved: true, error: undefined }); return;
       }

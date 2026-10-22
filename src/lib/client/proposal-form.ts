@@ -9,7 +9,7 @@ function unwrap(schema: z.core.$ZodType): z.core.$ZodType {
   if (schema instanceof z.ZodNullable || schema instanceof z.ZodOptional) return unwrap(schema.unwrap());
   return schema;
 }
-export const fieldLabel = (key: string) => key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (char) => char.toUpperCase());
+import { fieldLabel } from './field-label';
 export function draftFields(entity: Entity) {
   return Object.entries(createSchema(entity).shape).map(([name, schema]) => {
     const base = unwrap(schema);

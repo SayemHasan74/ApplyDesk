@@ -9,6 +9,8 @@ import type { ReviewEntry } from '@/lib/client/ai-client';
 import { confirmableEntries } from '@/lib/client/ai-client';
 import { applyChatItems, chatError, undoChatBatch } from '@/lib/client/chat-request';
 import { ToastUndo } from './toast-undo';
+import { apiRequest } from '@/lib/api/client';
+import { syncResultSchema } from '@/lib/gmail/schema';
 
 const queryKey = (entity: Entity) => entity === 'job' ? 'jobs' : entity === 'certification' ? 'certifications' : 'todos';
 export function useChatActions(sending: boolean) {
@@ -37,7 +39,7 @@ export function useChatActions(sending: boolean) {
       const result = await applyChatItems(selected.map(({ item }) => item));
       const entities = [...new Set(result.results.flatMap((row) => {
         const item = selected[row.index]?.item;
-        return row.ok && item && 'entity' in item ? [item.entity] : [];
+        return row.ok && item ? 'entity' in item ? [item.entity] : item.kind === 'suggestion' && item.decision === 'accept' ? ['job' as const] : [] : [];
       }))];
       if (result.results.some((row) => row.ok)) {
         await refresh(entities);
@@ -46,5 +48,16 @@ export function useChatActions(sending: boolean) {
       return { selected, results: result.results };
     } finally { locked.current = false; setPending(false); }
   }
-  return { pending, apply, undo };
+  async function sync() {
+    if (locked.current || sending) return null;
+    locked.current = true; setPending(true);
+    try {
+      const result = syncResultSchema.parse(await apiRequest('/api/gmail/sync', 'POST'));
+      if ('skipped' in result) throw new Error('Gmail sync skipped: AI limit reached.');
+      toast.success(`Processed ${result.processed} emails; ${result.suggestions} suggestions.`);
+      if (pathname === '/') router.refresh();
+      return result;
+    } finally { locked.current = false; setPending(false); }
+  }
+  return { pending, apply, undo, sync };
 }
