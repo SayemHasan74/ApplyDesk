@@ -11,7 +11,7 @@ export function matchCompany(company: string, jobs: { id: string; company: strin
   const key = normalizeKey(company);
   return jobs.filter((job) => { const candidate = normalizeKey(job.company); return key === candidate || (key.length >= 4 && candidate.length >= 4 && (key.includes(candidate) || candidate.includes(key))); });
 }
-export function explicitInterviewAt(email: GmailMessage, value: string | null) {
+function explicitInterviewAt(email: GmailMessage, value: string | null) {
   const text = `${email.subject}\n${email.body}`;
   const date = /\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}[\s/-]+(?:\d{1,2}|[a-z]{3,9})(?:[\s,/-]+\d{4})?\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}\b/i.test(text);
   const time = /\b\d{1,2}:\d{2}\b|\b\d{1,2}\s*(?:am|pm)\b/i.test(text);

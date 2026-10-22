@@ -42,7 +42,12 @@ export function resolveAction(action: Action, context: AiContext, evidence: Evid
   if (!target) return { proposal: null };
   const shared = { id, entity, targetId: target.id, label: rowLabel(target) };
   if (action.type === 'delete') return { proposal: { ...shared, kind: 'delete' } };
-  if (action.type === 'append_note' && action.note_text?.trim()) return { proposal: { ...shared, kind: 'append_note', text: action.note_text } };
+  if (action.type === 'append_note' && action.note_text?.trim()) {
+    if (entity !== 'todo') return { proposal: { ...shared, kind: 'append_note', text: action.note_text } };
+    const details = [String((target as Record<string, unknown>).details ?? ''), action.note_text].filter(Boolean).join('\n');
+    if (details.length > 4000) return { proposal: null, message: 'To-do details cannot exceed 4000 characters.' };
+    return { proposal: { ...shared, kind: 'update', before: { details: (target as Record<string, unknown>).details ?? '' }, patch: { details } } };
+  }
   if (action.type !== 'update' || !Object.keys(patch).length) return { proposal: null };
   const before = Object.fromEntries(Object.keys(patch).map((key) => [key, (target as Record<string, unknown>)[key]]));
   return { proposal: { ...shared, kind: 'update', before, patch, ...(notes ? { notes } : {}) } };

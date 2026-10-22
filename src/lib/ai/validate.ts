@@ -11,7 +11,7 @@ import type { AiContext } from './context';
 import type { ModelOutput } from './schema';
 
 export type Evidence = { text: string; sources: string[]; today: string; createdFrom: CreatedFrom };
-export const camelCase = (key: string) => key.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
+const camelCase = (key: string) => key.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
 export function validDate(value: unknown, today: string, deadline = false) {
   if (typeof value !== 'string' || !isValidDateString(value)) return null;
   const year = Number(today.slice(0, 4));
@@ -65,7 +65,7 @@ export function validatePatch(entity: Entity, raw: Record<string, unknown>, evid
   const notes = [...unsafe, ...rejected].length ? `Ignored fields: ${[...unsafe, ...rejected].join(', ')}`.slice(0, 4000) : undefined;
   return { patch: schema.parse(result), notes };
 }
-export function validateDraft(entity: Entity, raw: Record<string, unknown>, evidence: Evidence, context: AiContext) {
+function validateDraft(entity: Entity, raw: Record<string, unknown>, evidence: Evidence, context: AiContext) {
   const schema = entity === 'job' ? jobCreateSchema : entity === 'certification' ? certCreateSchema : todoCreateSchema;
   const cleaned = cleanValues(raw, evidence, context);
   if (entity === 'todo' && cleaned.details === null) cleaned.details = '';

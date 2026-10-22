@@ -2,7 +2,7 @@ import { deriveJob } from '../derive';
 import { compareJobs } from '../sort';
 import type { JobItem } from './items';
 
-export function compareJobItems(a: JobItem, b: JobItem) {
+function compareJobItems(a: JobItem, b: JobItem) {
   return compareJobs({ ...a, createdAt: new Date(a.createdAt), updatedAt: new Date(a.updatedAt) },
     { ...b, createdAt: new Date(b.createdAt), updatedAt: new Date(b.updatedAt) });
 }

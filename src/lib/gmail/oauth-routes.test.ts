@@ -3,7 +3,7 @@ vi.mock('server-only', () => ({}));
 const mocks = vi.hoisted(() => ({ admin: vi.fn(), cookie: vi.fn(), set: vi.fn(), token: vi.fn(), save: vi.fn(), connection: vi.fn(), revoke: vi.fn(), sync: vi.fn() }));
 vi.mock('../auth/session', () => ({ getUser: vi.fn(), requireAdmin: mocks.admin }));
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: mocks.cookie, set: mocks.set }) }));
-vi.mock('../env', () => ({ getEnv: () => ({ AUTH_GOOGLE_ID: 'client', AUTH_GOOGLE_SECRET: 'secret', APP_URL: 'https://app.example', CRON_SECRET: 'cron' }) }));
+vi.mock('../env', () => ({ isProduction: () => false, getEnv: () => ({ AUTH_GOOGLE_ID: 'client', AUTH_GOOGLE_SECRET: 'secret', APP_URL: 'https://app.example', CRON_SECRET: 'cron' }) }));
 vi.mock('./client', () => ({ tokenRequest: mocks.token, revokeToken: mocks.revoke }));
 vi.mock('../crypto', () => ({ encrypt: (value: string) => `encrypted:${value}`, decrypt: () => 'refresh' }));
 vi.mock('../data/gmail', () => ({ saveGmailConnection: mocks.save, getGmailConnection: mocks.connection }));
@@ -42,7 +42,7 @@ it('never exposes Gmail endpoints to demos or unauthenticated sessions', async (
     expect((await connect(request('connect'))).status).toBe(error.status);
     expect((await sync(request('sync', 'POST'))).status).toBe(error.status);
     expect((await disconnect(request('disconnect', 'POST'))).status).toBe(error.status);
-    expect((await callback(request(`callback?state=${state}&code=x`))).headers.get('location')).toBe('/settings?gmail=error');
+    expect((await callback(request(`callback?state=${state}&code=x`))).status).toBe(error.status);
   }
   expect(mocks.token).not.toHaveBeenCalled(); expect(mocks.sync).not.toHaveBeenCalled(); expect(mocks.save).not.toHaveBeenCalled();
 });

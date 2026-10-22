@@ -108,6 +108,12 @@ it('round-trips a mixed batch with full snapshots and original IDs/timestamps', 
   expect(harness.rows('job', {})[0]).toEqual(job); expect(harness.rows('certification', {})[0]).toEqual(cert); expect(harness.rows('todo', {})).toEqual([]);
   expect(Certification.insertMany).toHaveBeenCalledWith([cert], expect.objectContaining({ timestamps: false }));
 });
+it('expires every demo-created entity and its audit log with the same session', async () => {
+  const expiresAt = new Date(Date.now() + 24 * 3600_000); mocks.expiry.mockResolvedValue(expiresAt);
+  const result = await applyActions(visitor, { items: [{ kind: 'create', entity: 'job', data: { company: 'C', role: 'R' } }, { kind: 'create', entity: 'certification', data: { name: 'N', provider: 'P' } }, { kind: 'create', entity: 'todo', data: { title: 'T' } }] });
+  expect(result.results.every((item) => item.ok)).toBe(true);
+  for (const collection of ['job', 'certification', 'todo', 'logs'] as const) expect(harness.rows(collection, { userId: visitor.userId }).every((row) => row.expiresAt instanceof Date && row.expiresAt.getTime() === expiresAt.getTime())).toBe(true);
+});
 it('deletes a bulk selection with one scoped delete and restores every original ID on undo', async () => {
   const certs = Array.from({ length: 3 }, (_, i) => harness.seed('certification', { name: `Course ${i}`, provider: 'Academy', dedupeKey: `academy|course ${i}` }));
   const ids = certs.map((cert) => String(cert._id));

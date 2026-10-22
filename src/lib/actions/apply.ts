@@ -12,10 +12,11 @@ import { createActionState, type ActionState } from './state';
 import { actionFailure, isDatabaseError, isTransientTransactionError, ItemDatabaseError, writeAction } from './errors';
 import { writeEntity } from './write-entity';
 import { writeSuggestion } from './write-suggestion';
+import { canUse } from '../auth/permissions';
 
 async function applyItem(item: ActionItem, state: ActionState, index: number): Promise<AuditWrite[]> {
   if (item.kind !== 'setting' && item.kind !== 'suggestion') return writeEntity(item, state, index);
-  if (state.user.role !== 'admin') throw new AppError('FORBIDDEN', 'Administrator access required');
+  if (!canUse(state.user.role, item.kind)) throw new AppError('FORBIDDEN', 'Administrator access required');
   if (item.kind === 'suggestion') return writeSuggestion(item, state, index);
   const before = await getSettings(state.user.userId, state.session);
   const patch = item.key === 'groundingEnabled' ? { groundingEnabled: item.value } : { aiDailyLimit: item.value };
@@ -55,7 +56,7 @@ export async function applyActions(user: CurrentUser, input: unknown) {
       return await actionTransaction(async (session) => {
         const state = await createActionState(user, session, expiresAt);
         const { rows, results } = await runItems(items, state, failures);
-        await saveActionLogs(user.userId, batchId, rows, session);
+        await saveActionLogs(user.userId, batchId, rows, session, state.expiresAt);
         return { batchId, results };
       });
     } catch (error) {

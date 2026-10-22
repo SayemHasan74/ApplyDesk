@@ -25,7 +25,7 @@ export async function syncGmail(user: CurrentUser) {
 }
 async function syncConnected(user: CurrentUser, refreshTokenEnc: string) {
   const token = await getAccessToken(decrypt(refreshTokenEnc));
-  const listed = z.object({ messages: z.array(z.object({ id: z.string().min(1).max(200) })).max(25).optional() }).parse(await gmailGet(`messages?${new URLSearchParams({ q: GMAIL_QUERY, maxResults: '25' })}`, token));
+  const listed = z.object({ messages: z.array(z.object({ id: z.string().min(1).max(200), threadId: z.string().max(200).optional() }).strict()).max(25).optional(), nextPageToken: z.string().max(4096).optional(), resultSizeEstimate: z.number().int().nonnegative().optional() }).strict().parse(await gmailGet(`messages?${new URLSearchParams({ q: GMAIL_QUERY, maxResults: '25' })}`, token));
   const ids = await unprocessedIds(user.userId, [...new Set(listed.messages?.map((row) => row.id) ?? [])]);
   if (!ids.length) { await setGmailSyncTime(user.userId); return { processed: 0, suggestions: 0 }; }
   const [messages, jobs] = await Promise.all([mapFive(ids, async (id) => extractMessage(await gmailGet(`messages/${encodeURIComponent(id)}?format=full`, token))), listJobs(user.userId)]);

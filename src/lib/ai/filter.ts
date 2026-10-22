@@ -9,7 +9,7 @@ import type { Filter } from './schema';
 export function entityRows(context: AiContext, entity: Entity) {
   return entity === 'job' ? context.jobs : entity === 'certification' ? context.certifications : context.todos;
 }
-export type Row = ReturnType<typeof entityRows>[number];
+type Row = ReturnType<typeof entityRows>[number];
 export function rowLabel(row: Row) {
   if ('company' in row) return `${row.company}, ${row.role}`;
   if ('provider' in row) return `${row.name}, ${row.provider}`;

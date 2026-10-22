@@ -9,13 +9,13 @@ import { settingsPatchSchema } from '../validators/settings';
 import { objectId } from '../validators/fields';
 import { proposalSchema, type Proposal } from './ai-contract';
 
-export const reviewEntrySchema = z.object({ proposal: proposalSchema, saved: z.boolean(), discarded: z.boolean(), invalid: z.boolean(), editing: z.boolean(), selectedIds: z.array(objectId).max(25), error: z.string().optional() });
+export const reviewEntrySchema = z.object({ proposal: proposalSchema, saved: z.boolean(), discarded: z.boolean(), invalid: z.boolean(), editing: z.boolean(), selectedIds: z.array(objectId).max(25), error: z.string().max(4000).optional() }).strict();
 export type ReviewEntry = z.infer<typeof reviewEntrySchema>;
 export function reviewEntry(proposal: Proposal): ReviewEntry {
   return { proposal, saved: false, discarded: false, invalid: false, editing: false, selectedIds: 'items' in proposal ? proposal.items.map(({ id }) => id) : [] };
 }
 export function createSchema(entity: Entity) { return entity === 'job' ? jobCreateSchema : entity === 'certification' ? certCreateSchema : todoCreateSchema; }
-export function patchSchema(entity: Entity) { return entity === 'job' ? jobPatchSchema : entity === 'certification' ? certPatchSchema : todoPatchSchema; }
+function patchSchema(entity: Entity) { return entity === 'job' ? jobPatchSchema : entity === 'certification' ? certPatchSchema : todoPatchSchema; }
 export function toApplyItem(entry: ReviewEntry): ActionItem | null {
   const p = entry.proposal;
   if (entry.saved || entry.discarded || entry.invalid || p.kind === 'undo_last' || p.kind === 'run_sync_gmail') return null;

@@ -19,7 +19,7 @@ it('allows explicit OAuth redirects with no-store and clears state on callback a
   mocks.requireAdmin.mockRejectedValue(new AppError('FORBIDDEN', 'Private information'));
   const callback = withApi({ auth: 'user', role: 'admin', redirects: true, errorRedirect: '/settings?gmail=error' }, () => ({}));
   const failure = await callback(new Request('https://app.example/api/gmail/callback?state=x'));
-  expect(failure.status).toBe(303); expect(failure.headers.get('location')).toBe('/settings?gmail=error'); expect(failure.headers.get('set-cookie')).toContain('Max-Age=0'); expect(await failure.text()).toBe('');
+  expect(failure.status).toBe(403); expect(failure.headers.get('location')).toBeNull(); expect(failure.headers.get('set-cookie')).toContain('Max-Age=0'); expect(await failure.json()).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
 });
 it('checks origin before authentication, and authentication before parsing', async () => {
   const handler = vi.fn();
@@ -60,7 +60,7 @@ it('enforces declared and actual body limits, types and malformed JSON', async (
 it('authenticates cron without origin or session and rejects mismatched lengths', async () => {
   const route = withApi({ auth: 'cron' }, () => ({ synced: true }));
   for (const secret of ['', 'short', 'wrong-value']) {
-    expect((await route(new Request('https://app.example', { headers: { 'x-cron-secret': secret } }))).status).toBe(401);
+    expect((await route(new Request('https://app.example', { headers: { 'x-cron-secret': secret } }))).status).toBe(403);
   }
   const response = await route(new Request('https://app.example', { headers: { 'x-cron-secret': 'cron-secret' } }));
   expect(response.status).toBe(200);

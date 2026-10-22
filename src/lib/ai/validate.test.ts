@@ -8,24 +8,21 @@ const context = fixtureContext();
 function validated(extra: Record<string, unknown>) {
   return validateOutput(modelOutputSchema.parse({ intent: 'act', assistant_message: 'Proposed.', ...extra }), evidence, context);
 }
-it('drops drafts without core fields, strips unknowns and recovers bad optional enums', () => {
-  const result = validated({ job_drafts: [{ company: '', role: 'Engineer' }, { company: 'X', role: 'Y', work_mode: 'invented', ignored: 'no' }], todo_drafts: [{ title: '  ' }] });
-  expect(result.drafts).toHaveLength(1);
-  expect(result.drafts[0].draft).toMatchObject({ company: 'X', role: 'Y', workMode: 'unknown' });
-  expect(result.drafts[0].draft).not.toHaveProperty('ignored');
+it('rejects drafts with missing core fields, unknown keys or invalid optional enums', () => {
+  for (const draft of [{ company: '', role: 'Engineer' }, { company: 'X', role: 'Y', ignored: true }, { company: 'X', role: 'Y', work_mode: 'invented' }]) expect(modelOutputSchema.safeParse({ intent: 'act', assistant_message: 'Proposed.', job_drafts: [draft] }).success).toBe(false);
 });
 it('validates calendar dates and exact inclusive deadline horizons', () => {
   for (const value of ['2026-02-30', 'N/A', '2024-10-21', '2029-10-23']) expect(validDate(value, evidence.today, true)).toBeNull();
   for (const value of ['2024-10-22', '2029-10-22']) expect(validDate(value, evidence.today, true)).toBe(value);
   expect(validDate('2035-01-01', evidence.today)).toBe('2035-01-01');
 });
-it('bounds summaries and drops overlong strings/list entries instead of discarding drafts', () => {
-  const { draft } = validated({ job_drafts: [{ company: 'X', role: 'Y', description_summary: 'a'.repeat(5000), location: 'a'.repeat(121),
+it('bounds valid summaries and limits source requirements', () => {
+  const { draft } = validated({ job_drafts: [{ company: 'X', role: 'Y', description_summary: 'a'.repeat(4000), location: null,
     requirements: ['a'.repeat(121), ...Array.from({ length: 12 }, () => 'Short item')], deadline: '2099-01-01' }] }).drafts[0];
   expect(draft).toMatchObject({ descriptionSummary: 'a'.repeat(600), location: null, deadline: null, requirements: Array(8).fill('Short item') });
 });
 it('requires http links and evidence for primary URLs, allows supplied sources and literal typed URLs', () => {
-  const base = { company: 'X', role: 'Y', apply_url: 'https://official.com/apply', source_urls: ['javascript:bad', 'https://source.com'] };
+  const base = { company: 'X', role: 'Y', apply_url: 'https://official.com/apply', source_urls: ['https://source.com'] };
   expect(validated({ job_drafts: [base] }).drafts[0].draft).toMatchObject({ applyUrl: null, sourceUrls: ['https://source.com'] });
   for (const support of [{ ...evidence, text: 'https://official.com/apply' }, { ...evidence, sources: ['https://official.com/apply'] }]) {
     const output = modelOutputSchema.parse({ intent: 'act', assistant_message: 'Proposed.', job_drafts: [base] });

@@ -9,10 +9,12 @@
 4. In Google Cloud create a project and a **Web application** OAuth client. Configure Google Auth Platform branding and audience, and add these **authorized redirect URIs** exactly:
    - `http://localhost:3000/api/auth/callback/google`
    - `https://YOUR-PRODUCTION-DOMAIN/api/auth/callback/google`
+   - `http://localhost:3000/api/gmail/callback`
+   - `https://YOUR-PRODUCTION-DOMAIN/api/gmail/callback`
 
    Add `http://localhost:3000` and your HTTPS production origin as authorized JavaScript origins if requested. Record the client ID and secret. Set `ALLOWED_EMAIL` to the owner's Google account; the app also requires Google's verified-email claim. Other Google accounts cannot sign in. Preview deployments need their own explicitly registered callback URL if used for OAuth testing.
 
-5. Set the Google OAuth consent screen / Audience publishing status to **In production**. This is necessary for the later Gmail integration: external apps in **Testing** receive refresh tokens that expire after seven days when requesting scopes beyond basic identity. Publishing does not guarantee tokens last forever; revocation and Google's other expiration rules still apply. Complete Google's verification requirements if the selected scopes require them. [Google token expiration rules](https://developers.google.com/identity/protocols/oauth2/#expiration).
+5. Set the Google OAuth consent screen / Audience publishing status to **In production**. This is necessary for the Gmail integration: external apps in **Testing** receive refresh tokens that expire after seven days when requesting scopes beyond basic identity. Publishing does not guarantee tokens last forever; revocation and Google's other expiration rules still apply. Complete Google's verification requirements if the selected scopes require them. [Google token expiration rules](https://developers.google.com/identity/protocols/oauth2/#expiration).
 
 6. Fill the environment variables below locally, then run `npm run db:indexes` once to create the unique, tenant, TTL, and counter indexes. Run it again after an authorized model-index change. Do this before using demos or creating records; `autoIndex` is disabled at runtime. Run `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`.
 
@@ -30,42 +32,49 @@
    | `ENCRYPTION_KEY` | Separate generated 32-byte base64 encryption key |
    | `CRON_SECRET` | Separate generated cron secret |
    | `DEMO_AI_DAILY_LIMIT` | Positive integer, such as `6` |
-   | `TELEGRAM_BOT_TOKEN` | Optional until Telegram is implemented; omit if unused |
-   | `TELEGRAM_CHAT_ID` | Optional until Telegram is implemented; omit if unused |
 
-7. Import the GitHub repository into **Vercel** as a Next.js project. Use the repository's npm lockfile and compatible Node runtime. Keep the standard `npm run build` command. `vercel.json` pins functions to **Singapore (`sin1`)**, next to Atlas. No AI route exists yet; only that future route will receive `maxDuration = 60`.
+7. Import the GitHub repository into **Vercel** as a Next.js project. Use the repository's npm lockfile and compatible Node runtime. Keep the standard `npm run build` command. `vercel.json` pins functions to **Singapore (`sin1`)**, next to Atlas. The AI chat and Gmail cron routes have `maxDuration = 60`. Enable the Gmail API in the OAuth project before connecting Gmail.
 
-8. In Vercel Project Settings → Environment Variables enter every required value from step 6 for **Production**. Add optional Telegram values only when available. Set `APP_URL` to the final **Production domain's HTTPS origin**, with no path. Use matching environment values and OAuth callbacks for Development/Preview if those environments are enabled. Never expose secrets in screenshots or build logs.
+8. In Vercel Project Settings → Environment Variables enter every required value from step 6 for **Production**. Set `APP_URL` to the final **Production domain's HTTPS origin**, with no path. Use matching environment values and OAuth callbacks for Development/Preview if those environments are enabled. Never expose secrets in screenshots or build logs.
 
 9. Deploy from Vercel. If the production hostname is only known after the first deployment, update `APP_URL` and Google's production redirect URI, then redeploy. Environment-variable changes require a new deployment. Sign in on the production URL using the allowed account and verify Settings saves; verify another Google account is rejected and a demo cannot access Settings. Deployment and Google authorization are human steps; they are not executed by this code change.
 
 10. Open the production app in current **Chrome or Edge**, inspect the linked manifest, then select **Install ApplyDesk** (or the browser's install-app menu). Confirm the installed app opens in a standalone window. Manifest icons are generated PNG responses at `/icon-192` and `/icon-512`; the latter is maskable. The theme/background color is `#4f46e5`. There is **no service worker or offline mode**. If the browser does not offer installation, check HTTPS, manifest/icon responses, and its installation criteria; do not add a service worker to bypass the project rules.
 
-## Part 5 request and performance audit
+## Final security and request audit
 
-1. Runtime application source contains none of the forbidden session hooks, timer polling, caching directives, libraries, or suppression patterns listed in the Part 5 prompt. Generated build output, dependency code, and rule documents are excluded from the runtime-source search.
-2. Server pages/layouts perform no HTTP fetches. The three list queries all receive server `initialData`; effects do not fetch. Settings uses local optimistic state and a mutation, without another query key or a mount request. Production browser regression checks confirmed one API request for each tested mutation and no list GET afterward.
-3. There are nine direct `getUser()` call sites: seven across the root/app layouts and five authenticated pages, one API helper, and one session helper. Each page/layout level calls it at most once. React `cache` shares the session lookup within a request. Only `session.ts` imports the actual `auth` function; login actions import `signIn`/`signOut`, and the native Auth.js route imports its protocol handlers.
-4. [Next.js 16 removed First Load JS from build output](https://nextjs.org/docs/app/guides/upgrading/version-16). After a successful build run `node scripts/audit-bundles.mjs` for a reproducible initial-JS estimate from production manifests. It counts unique bootstrap, layout, and page chunks with gzip level 9, in decimal kB; it excludes legacy-only polyfills, unopened lazy editors/validators, and error-only entries. It is not a measurement of HTML, RSC payloads, CSS, or later interactions. The script exits unsuccessfully if an authenticated page exceeds 170,000 bytes. The audit reduced the initial client dependency graph by deferring editors/validation/request helpers, keeping date-only formatting separate from timezone code, rendering static icons on the server, and using native menu/buttons on initial screens.
+1. API inventory: all application APIs use `withApi`; native Auth.js and generated image endpoints retain their protocol handlers. OAuth connection redirects are explicitly allowed by the wrapper.
+2. Tenant isolation: the source heuristic and manual review cover CRUD, linked IDs, concrete bulk filters, undo replacements, Gmail upserts and action logs. Scoped-filter helpers and aliased filters retain `userId`. The root users collection uses `_id: userId`. The authenticated cron's single-owner bootstrap lookup is the Part 9 exception; it passes that owner's ID into every operation afterward.
+3. Permissions: `canUse` gates owner capabilities. Demos receive 403 on Settings, Gmail and secretless cron APIs; owner pages redirect demos to /. This Part 10 requirement overrides the earlier OAuth callback auth-failure redirect and cron 401 behavior. Authenticated callback failures still redirect to the generic Settings error URL.
+4. Validation: strict manual, AI proposal and classifier contracts reject unknown/operator/dotted keys, excessive lengths, invalid dates/IDs and unsafe URL schemes. Raw AI records are rejected and use the existing bounded repair flow. Provider metadata is projected to known fields; full audit snapshots are restricted to model-declared fields. A malformed job URL previously threw inside its Zod refinement; it now returns a normal validation failure.
+5. CSRF: POST, PATCH and DELETE tests reject missing/cross-origin Origin and cross-site Sec-Fetch-Site before authentication or mutation. Cron requires its timing-safe shared secret and ignores cookies.
+6. Secrets: runtime environment reads are confined to the server-only env module; local env files are Git-ignored. No client imports server secrets. NODE_ENV checks for OAuth cookies use the central module. Secret values were not included in this audit.
+7. Errors: only explicit non-internal AppErrors expose messages. Other failures, Mongo errors and stacks remain generic; action failures preserve independent per-item results.
+8. Logs: no console.log calls. Server error logs contain only a code and request ID.
+9. Requests: Server Components read data directly; independent loads use Promise.all. All three list queries receive initialData and disable mount refetch. The chat's two first-open history/usage GETs are the explicit Part 8 exception. No mount fetch follows server-provided lists; no polling, session provider, per-user persistent cache or automatic mutation retry. There are ten getUser call sites, at most one per page/layout level; React cache wraps the only auth call. Static tests enforce API wrappers and security headers.
+10. Demo expiry: creation tests cover the user, all seed/manual/AI entity helpers, chat messages and action logs. Demo action logs now expire with the demo session, within their normal 30-day maximum; owner Gmail records are unavailable to demos. MongoDB TTL deletion is asynchronous. A real Atlas read verified the fresh demo user and all 8 jobs, 5 certifications and 8 to-dos share the same expiry.
+11. Cleanup: removed six unused copied UI files, five unused UI wrapper functions, unused UI exports and unused public type/helper exports. Retained dependencies are used by runtime code, framework/type tooling or required scripts. No package was added. README documents the maintained app in fewer than 120 lines.
 
-   | Route | Initial JS, gzip kB |
-   | --- | ---: |
-   | `/` | 156.3 |
-   | `/jobs` | 165.5 |
-   | `/certifications` | 165.9 |
-   | `/todos` | 166.3 |
-   | `/settings` | 158.1 |
-   | `/login` | 150.4 |
-   | `/demo` | 150.4 |
-   | `/_not-found` | 150.1 |
-   | `/api/auth/[...nextauth]` | 0 |
-   | `/api/jobs`, `/api/jobs/[id]` | 0 |
-   | `/api/certifications`, `/api/certifications/[id]` | 0 |
-   | `/api/todos`, `/api/todos/[id]`, `/api/todos/clear-done` | 0 |
-   | `/api/settings` | 0 |
-   | `/icon`, `/apple-icon`, `/icon-192`, `/icon-512`, `/manifest.webmanifest` | 0 |
+### Production initial JavaScript
 
-5. Every application JSON API handler uses `withApi`. The native Auth.js protocol endpoint is the necessary exception: OAuth redirects, cookies and protocol responses must remain under Auth.js rather than the application's JSON envelope. The public generated PNG routes also intentionally use native `ImageResponse` handlers. Unauthenticated application APIs now reach `withApi` instead of being redirected by the page proxy, and return JSON 401 with `Cache-Control: no-store`. Demo Settings API access returns 403 and its page redirects to `/`. Tenant-owned document filters use `userId`; the root `users` collection identifies the owner by `_id: userId`, plus `role: 'admin'` for Settings. A source-scanning Vitest test enforces first-parameter `userId` on all exported data functions; the pure serializer was moved out of that directory.
-6. `securityHeaders()` is exported from `next.config.ts` and tested for all five standard headers plus exact production-only CSP. Production HTTP responses were also checked, including absence of `X-Powered-By`. The database index command was corrected to use the tsx CommonJS evaluation entry point for compatibility with the installed Node/Mongoose combination, and successfully run against Atlas.
+After a successful build run `node scripts/audit-bundles.mjs`. Next.js 16 does not print First Load JS in its route table. This estimate counts unique bootstrap/layout/page chunks, gzip level 9, decimal kB; it excludes unopened lazy chunks, legacy polyfills and error-only entries, HTML/RSC and CSS.
 
-The manifest and PNG dimensions were tested against the production server. A live owner Settings save, Google production login, and OS-level Chrome/Edge installation remain human checks after the real OAuth/environment configuration and deployment. Browser checks used an isolated expiring demo and temporary process-only values for unconfigured services. No deployment or external account settings were changed by Part 5.
+| Route | Initial JS, gzip kB |
+| --- | ---: |
+| / | 158.1 |
+| /jobs | 166.2 |
+| /certifications | 166.6 |
+| /todos | 167.0 |
+| /inbox | 160.0 |
+| /settings | 160.8 |
+| /login | 150.5 |
+| /demo | 150.5 |
+| /_not-found | 150.2 |
+| All API routes, generated icons and manifest | 0 |
+
+### Acceptance limits
+
+The local production browser check used a fresh isolated demo session, not a separate incognito profile. Passive server request counts verified zero dashboard API calls and exactly one to-do PATCH with no list GET. Demo quota fallback and its three example conversations can be verified without increasing the real budget.
+Owner OAuth variables, APP_URL, ENCRYPTION_KEY and CRON_SECRET are still unconfigured locally. Production owner login persistence in an installed Chrome/Edge app and the complete live screenshot/multi-command AI acceptance sequence require the human's configured deployment and available AI quota. These checks are not represented as completed by unit tests.
+
+For scheduled Gmail sync set GitHub Actions secrets APP_URL and CRON_SECRET to the production values, and connect Gmail in Settings. The workflow runs every six hours; no deployment or account permission change was performed by this audit.

@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { auth } from '@/auth';
 import { currentUserSchema, isActiveSession } from './policy';
 import { AppError } from '../errors';
+import { canUse } from './permissions';
 
 export const getUser = cache(async () => {
   const session = await auth();
@@ -23,6 +24,6 @@ export async function requireUser() {
 
 export async function requireAdmin() {
   const user = await requireUser();
-  if (user.role !== 'admin') throw new AppError('FORBIDDEN', 'Administrator access required');
+  if (!canUse(user.role, 'settings')) throw new AppError('FORBIDDEN', 'Administrator access required');
   return user;
 }

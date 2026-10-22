@@ -65,7 +65,7 @@ ApplyDesk is a personal tracker for Jobs, Certifications and To-dos with an AI a
 3.9 **Encryption** (Gmail refresh token): AES-256-GCM, key = `ENCRYPTION_KEY` (base64, exactly 32 bytes), 12-byte random IV per encryption, stored as `v1.<iv>.<tag>.<ciphertext>` (each base64url). Decrypt failure returns an error, never plaintext.
 3.10 **Untrusted content:** text from web pages, emails, screenshots and AI output is untrusted data. The AI can only return proposals; nothing it says is executed. The apply endpoint re-validates everything.
 3.11 **Cron routes** require header `x-cron-secret` compared with `crypto.timingSafeEqual` against `CRON_SECRET`; they ignore sessions.
-3.12 **Demo users** are fully isolated (rule 3.3), expire automatically (TTL), cannot use Gmail/Telegram/settings, and have a hard AI cap.
+3.12 **Demo users** are fully isolated (rule 3.3), expire automatically (TTL), cannot use Gmail/settings, and have a hard AI cap.
 
 ## 4. Code quality rules
 4.1 One source of truth: enums/constants only in `src/lib/constants.ts`; types are inferred from zod schemas (`z.infer`) or Mongoose models, never duplicated by hand.
@@ -79,11 +79,11 @@ ApplyDesk is a personal tracker for Jobs, Certifications and To-dos with an AI a
 4.9 **Long text must be expandable (uniform card/row size).** Create ONE reusable client component `src/components/ui/expandable-text.tsx`: props `text: string`, `lines?: number` (default 3). It renders the text clamped to `lines` lines with CSS `line-clamp` and shows a small "Show more" / "Show less" button ONLY when the text actually overflows (measure with a ref comparing `scrollHeight` and `clientHeight` in `useLayoutEffect`, re-measure on text change and on window resize), with `aria-expanded`. Expanding affects only that one field. Use it for EVERY free-text field shown in rows, cards, drawers' read-only parts and chat: descriptionSummary, requirements/prerequisites (joined with " • "), eligibility, notes, deadlineNote, compensationText, costText, to-do details, email subjects, and long chat messages (assistant bubbles clamp at 8 lines). Table cells and cards keep a uniform height by clamping to 2 lines. Never truncate stored data; clamping is visual only. Edit forms (sheets) always show the full value in a normal textarea.
 
 ## 5. Conventions used everywhere
-- **Folders:** `src/app` (routes), `src/components/{ui,shell,jobs,certifications,todos,chat,settings}`, `src/lib/{api,auth,data,models,validators,ai,fetch,gmail,telegram}` plus single files `db.ts env.ts constants.ts dates.ts dedupe.ts sort.ts crypto.ts errors.ts`, `scripts/`, `.github/workflows/`.
+- **Folders:** `src/app` (routes), `src/components/{ui,shell,jobs,certifications,todos,chat,settings}`, `src/lib/{api,auth,data,models,validators,ai,fetch,gmail}` plus single files `db.ts env.ts constants.ts dates.ts dedupe.ts sort.ts crypto.ts errors.ts`, `scripts/`, `.github/workflows/`.
 - **Routes (all dynamic, authenticated unless noted):** `/` dashboard, `/jobs`, `/certifications`, `/todos`, `/inbox` (admin), `/settings` (admin), `/login` (public), `/demo` (public). Tabs are real routes, not client state.
 - **API response format:** success `{ "ok": true, "data": ... }`; failure `{ "ok": false, "error": { "code": "...", "message": "..." } }`. Codes and status: `VALIDATION` 400, `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `CONFLICT` 409, `TOO_LARGE` 413, `RATE_LIMITED` 429, `INTERNAL` 500. Always `Cache-Control: no-store`.
 - **Dates:** date-only values are strings `YYYY-MM-DD`. "Today" is always `formatInTimeZone(new Date(), 'Asia/Dhaka', 'yyyy-MM-dd')`. Day differences are computed by parsing both strings with `Date.UTC(y, m - 1, d)` and dividing the millisecond difference by 86,400,000 (never with local-time `Date` math). Display format `dd MMM yyyy`.
-- **Env vars:** `MONGODB_URI, AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, ALLOWED_EMAIL, APP_URL, GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, ENCRYPTION_KEY, CRON_SECRET, DEMO_AI_DAILY_LIMIT, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID`. Validated by one zod schema in `src/lib/env.ts` via `getEnv()` (memoized). `.env.example` lists all with empty values. `.gitignore` ignores `.env*` except `.env.example`.
+- **Env vars:** `MONGODB_URI, AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, ALLOWED_EMAIL, APP_URL, GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, ENCRYPTION_KEY, CRON_SECRET, DEMO_AI_DAILY_LIMIT`. Validated by one zod schema in `src/lib/env.ts` via `getEnv()` (memoized). `.env.example` lists all with empty values. `.gitignore` ignores `.env*` except `.env.example`.
 - **Scripts in package.json:** `dev`, `build`, `start`, `lint`, `typecheck` (`tsc --noEmit`), `test` (`vitest run`), `db:indexes` (`tsx --env-file=.env.local scripts/sync-indexes.ts`).
 ````
 
@@ -100,7 +100,7 @@ Create the project skeleton, tooling, shared libraries and ALL Mongoose models. 
 1. Scaffold with `create-next-app` (TypeScript, ESLint, Tailwind, App Router, `src/` directory, no Turbopack-specific hacks). Add `.npmrc` with `save-exact=true`. Install the dependencies from AGENTS.md section 1 (production: `mongoose zod date-fns date-fns-tz @tanstack/react-query server-only @google/genai cheerio next-auth@beta`; dev: `vitest tsx`). Initialize shadcn/ui and add only the components listed in AGENTS.md. Add the scripts from AGENTS.md section 5. Create `vitest.config.ts` (node environment, `src/**/*.test.ts`) and `.env.example`.
 2. `next.config.ts`: apply the security headers from AGENTS.md rule 3.7 (CSP only when `NODE_ENV === 'production'`), `poweredByHeader: false`, `reactStrictMode: true`.
 3. `vercel.json`: `{ "regions": ["sin1"] }`.
-4. `src/lib/env.ts`: zod schema for all env vars; `getEnv()` memoized, called only at request time. `GEMINI_MODEL` defaults to `gemini-2.5-flash`, `GEMINI_FALLBACK_MODELS` defaults to `gemini-2.5-flash-lite`, `DEMO_AI_DAILY_LIMIT` defaults to `6`. Telegram vars optional. All others required.
+4. `src/lib/env.ts`: zod schema for all env vars; `getEnv()` memoized, called only at request time. `GEMINI_MODEL` defaults to `gemini-2.5-flash`, `GEMINI_FALLBACK_MODELS` defaults to `gemini-2.5-flash-lite`, `DEMO_AI_DAILY_LIMIT` defaults to `6`. All others required.
 5. `src/lib/db.ts`: `connectDb()` caches `{ conn, promise }` on `globalThis`, uses `mongoose.connect(uri, { maxPoolSize: 5, serverSelectionTimeoutMS: 5000, bufferCommands: false, autoIndex: false })`. If the promise rejects, clear the cache so the next call retries.
 6. `src/lib/constants.ts`: all enums as `as const` arrays plus derived union types:
    - `JOB_STATUSES = ['saved','applied','assessment','interview','offer','rejected','withdrawn']`
@@ -265,7 +265,7 @@ Read `AGENTS.md` first and follow it exactly. Do ONLY this part.
 ## 1. Settings (admin only)
 - `src/lib/data/users.ts`: `getSettings(userId)`, `updateSettings(userId, patch)`.
 - `GET|PATCH /api/settings` (`withApi`, `role: 'admin'`). Patch schema (`.strict()`): `groundingEnabled?: boolean`, `aiDailyLimit?: integer 1 to 100`.
-- Route `/settings` (Server Component; if role is `demo`, `redirect('/')`): shows AI web search toggle, AI daily limit number input, and read-only sections for Gmail and Telegram that say "Set up in a later step" are NOT allowed (no placeholder text): only render the two controls that exist now. Add the **Settings** link to the user menu for admins.
+- Route `/settings` (Server Component; if role is `demo`, `redirect('/')`): shows AI web search toggle, AI daily limit number input, and read-only sections for Gmail that say "Set up in a later step" are NOT allowed (no placeholder text): only render the two controls that exist now. Add the **Settings** link to the user menu for admins.
 
 ## 2. PWA
 - `src/app/manifest.ts`: name "ApplyDesk", short_name "ApplyDesk", `start_url: '/'`, `display: 'standalone'`, `background_color` and `theme_color` `#4f46e5`, icons `/icon-192` and `/icon-512` (type `image/png`, one with `purpose: 'maskable'`).
@@ -605,16 +605,12 @@ Message-body extraction (plain, html-only, multipart nested), event-to-status ma
 
 ---
 
-# PART 10: Telegram reminders, final hardening, README and the full security audit
+# PART 10: Final hardening, README and the full security audit
 
 Read `AGENTS.md` first and follow it exactly. Do ONLY this part.
 
-## 10.1 Telegram daily digest (admin only, no AI)
-- `src/lib/telegram/digest.ts` (pure, tested): `buildDigest({ jobs, certs, todos, today })` returns plain text (max 3500 chars, no markdown parse mode) with sections only when non-empty: **Jobs due soon** (status `saved`, deadline in 0 to 3 days, each as "Company, Role: today/tomorrow/in N days"), **Certification deadlines** (status `wishlist|planned`, 0 to 3 days), **Interviews in the next 3 days** (jobs with `interviewAt`), **To-dos due today** (titles, max 10), **Overdue to-dos** (count and the 5 oldest). If every section is empty return `null` (send nothing).
-- `src/lib/telegram/send.ts`: `sendTelegram(text)` using `fetch` to `https://api.telegram.org/bot<TOKEN>/sendMessage` with `chat_id` from `TELEGRAM_CHAT_ID`, `disable_web_page_preview: true`, 8 s timeout, no retries. Never log the token or text.
-- `POST /api/cron/reminders` (`withApi`, `auth: 'cron'`): loads the admin user's jobs/certs/todos with `Promise.all`, builds the digest, sends if not null, returns `{ sent: boolean }`. If the Telegram env vars are missing return `{ sent: false, reason: 'not configured' }` (not an error).
-- `.github/workflows/reminders.yml`: cron `0 2 * * *` (08:00 Asia/Dhaka) plus `workflow_dispatch`, same curl pattern.
-- Settings page: a read-only line "Telegram reminders: configured / not configured" computed on the server from env presence (never reveal values).
+## 10.1 Excluded integrations
+No additional reminder or digest functionality is included.
 
 ## 10.2 Final hardening pass (fix every finding; list each check's result in the report)
 1. **Route inventory test:** write a Vitest test that lists every `route.ts` under `src/app/api` and fails if its source does not contain `withApi(`. Public exceptions allowed only: `/api/auth/[...nextauth]`, `icon-192`, `icon-512`.

@@ -9,7 +9,8 @@ import { Suggestion } from '../models/suggestions';
 import { objectId } from '../validators/fields';
 import { AppError } from '../errors';
 
-export const snapshotSchema = z.object({ _id: z.instanceof(Types.ObjectId), userId: objectId, createdAt: z.date(), updatedAt: z.date() }).passthrough();
+const snapshotFields = Object.fromEntries([...new Set([Job, Certification, Todo, Suggestion].flatMap((model) => Object.keys(model.schema.paths).map((key) => key.split('.')[0])))].map((key) => [key, z.unknown().optional()]));
+export const snapshotSchema = z.object({ ...snapshotFields, _id: z.instanceof(Types.ObjectId), userId: objectId, createdAt: z.date(), updatedAt: z.date() }).strict().transform((value) => value as typeof value & Record<string, unknown>);
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export function entityStore(entity: Entity | 'suggestion') {
   const model = entity === 'job' ? Job : entity === 'certification' ? Certification : entity === 'suggestion' ? Suggestion : Todo;

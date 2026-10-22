@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { COMP_STATUSES, CREATED_FROM, JOB_STATUSES, JOB_TYPES, PRIORITIES, WORK_MODES } from '../constants';
 import { isValidDateString } from '../dates';
+import { httpUrl } from './fields';
 
-export const jobIdSchema = z.string().regex(/^[a-f0-9]{24}$/, 'Invalid job ID');
+export const jobIdSchema = z.string().max(24).regex(/^[a-f0-9]{24}$/, 'Invalid job ID');
 const date = z.string().max(10).refine(isValidDateString, 'Enter a valid calendar date').nullable().default(null);
 const text = (max: number) => z.string().max(max).nullable().default(null);
-const httpUrl = z.url().max(2048).refine((value) => ['http:', 'https:'].includes(new URL(value).protocol), 'Use an http or https URL');
 
 export const jobCreateSchema = z.object({
   company: z.string().trim().min(1, 'Company is required').max(120),

@@ -11,7 +11,8 @@ export async function tokenRequest(values: Record<string, string>) {
   return await response.json() as unknown;
 }
 export async function getAccessToken(refreshToken: string) {
-  return z.object({ access_token: z.string().min(1).max(8192) }).parse(await tokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken })).access_token;
+  const value = await tokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken });
+  return z.string().min(1).max(8192).parse(value && typeof value === 'object' && 'access_token' in value ? value.access_token : undefined);
 }
 export async function gmailGet(path: string, token: string) {
   if (!/^messages(?:\?|\/[a-zA-Z0-9_-]+\?)/.test(path)) throw new AppError('VALIDATION', 'Invalid Gmail path');

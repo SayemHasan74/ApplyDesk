@@ -26,6 +26,7 @@ it('seeds exactly once per collection with isolated user ids and a shared 24-hou
   const certs = vi.spyOn(Certification, 'insertMany').mockImplementation(async () => []);
   const todos = vi.spyOn(Todo, 'insertMany').mockImplementation(async () => []);
   expect(await createDemoUser()).toBe(user);
+  expect(mocks.create).toHaveBeenCalledWith({ role: 'demo', name: 'Demo visitor', expiresAt: new Date(Date.now() + 24 * 3_600_000) });
   for (const [insert, count] of [[jobs, 8], [certs, 5], [todos, 8]] as const) {
     expect(insert).toHaveBeenCalledTimes(1);
     const [items] = insert.mock.calls[0];

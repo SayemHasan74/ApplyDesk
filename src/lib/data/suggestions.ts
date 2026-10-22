@@ -7,7 +7,7 @@ import { MAX_LIST, PRIORITIES, SUGGESTION_TYPES } from '../constants';
 import { objectId } from '../validators/fields';
 import { suggestionPayloadSchema } from '../gmail/schema';
 
-export const suggestionItemSchema = z.object({ id: objectId, type: z.enum(SUGGESTION_TYPES), jobId: objectId.nullable(), emailSubject: z.string(), emailFrom: z.string(), emailDate: z.string(), confidence: z.enum(PRIORITIES), payload: suggestionPayloadSchema });
+const suggestionItemSchema = z.object({ id: objectId, type: z.enum(SUGGESTION_TYPES), jobId: objectId.nullable(), emailSubject: z.string().max(4000), emailFrom: z.string().max(254), emailDate: z.iso.datetime(), confidence: z.enum(PRIORITIES), payload: suggestionPayloadSchema }).strict();
 export type SuggestionItem = z.infer<typeof suggestionItemSchema>;
 export async function listSuggestions(userId: string) {
   objectId.parse(userId); await connectDb();

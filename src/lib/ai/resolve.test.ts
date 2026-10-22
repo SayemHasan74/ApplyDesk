@@ -23,9 +23,9 @@ it('detects duplicates by normalized keys and emits camelCase drafts', () => {
   expect(result.proposals[0]).toMatchObject({ kind: 'create', entity: 'job', draft: { jobType: 'internship' } });
 });
 it('resolves sparse updates with before values and discards hallucinated IDs', () => {
-  const result = resolve({ actions: [{ type: 'update', entity: 'job', id: fixtureContext().jobs[0].id, patch: { status: 'applied', ignored: true } }, { type: 'delete', entity: 'job', id: 'f'.repeat(24) }] });
+  const result = resolve({ actions: [{ type: 'update', entity: 'job', id: fixtureContext().jobs[0].id, patch: { status: 'applied' } }, { type: 'delete', entity: 'job', id: 'f'.repeat(24) }] });
   expect(result.proposals).toHaveLength(1);
-  expect(result.proposals[0]).toMatchObject({ kind: 'update', before: { status: 'saved' }, patch: { status: 'applied' }, notes: 'Ignored fields: ignored' });
+  expect(result.proposals[0]).toMatchObject({ kind: 'update', before: { status: 'saved' }, patch: { status: 'applied' } });
 });
 it('resolves bulk actions to concrete IDs, caps at 25 and reports no matches', () => {
   const action = { type: 'bulk_update', entity: 'job', filter: { statuses: ['saved'] }, patch: { status: 'applied' } };
@@ -41,7 +41,7 @@ it('applies filters deterministically without treating invalid dates as unbounde
   const row = fixtureContext().todos[0];
   expect(matchesFilter(row, filterSchema.parse({ view: 'overdue', text_contains: 'study' }), evidence.today)).toBe(true);
   for (const filter of [{ view: 'today' }, { tag: 'work' }, { due_after: '2026-10-21' }]) expect(matchesFilter(row, filterSchema.parse(filter), evidence.today)).toBe(false);
-  expect(resolve({ actions: [{ type: 'bulk_delete', entity: 'todo', filter: { due_before: 'invalid-date' } }] }).proposals).toEqual([]);
+  expect(() => resolve({ actions: [{ type: 'bulk_delete', entity: 'todo', filter: { due_before: 'invalid-date' } }] })).toThrow();
 });
 it('answers queries entirely from sorted user lists and discards writes for query/chat intents', () => {
   const result = resolve({ intent: 'query', query: { entity: 'job', deadline_before: '2026-10-29', sort: 'name' }, job_drafts: [{ company: 'New', role: 'Role' }] }, 3);
@@ -57,11 +57,12 @@ it('allows admin-only proposal kinds only for admin, keeps undo for demo', () =>
   expect(adminResult.proposals.map(({ kind }) => kind)).toEqual(['undo_last', 'run_sync_gmail', 'setting', 'suggestion']);
   adminResult.proposals.forEach((proposal) => expect(proposalSchema.safeParse(proposal).success).toBe(true));
   expect(resolve({ actions }, 1, 'demo').proposals.map(({ kind }) => kind)).toEqual(['undo_last']);
-  expect(resolve({ actions: [{ type: 'update_setting', setting: { key: 'aiDailyLimit', value: 101 } }] }).proposals).toEqual([]);
+  expect(() => resolve({ actions: [{ type: 'update_setting', setting: { key: 'aiDailyLimit', value: 101 } }] })).toThrow();
 });
 it('resolves delete, append-note and bulk-delete shapes without writing anything', () => {
   const target = fixtureContext().todos[0].id;
   const result = resolve({ actions: [{ type: 'delete', entity: 'todo', id: target }, { type: 'append_note', entity: 'todo', id: target, note_text: 'Prepare CV' }, { type: 'bulk_delete', entity: 'todo', filter: { view: 'overdue' } }] });
-  expect(result.proposals.map(({ kind }) => kind)).toEqual(['delete', 'append_note', 'bulk_delete']);
+  expect(result.proposals.map(({ kind }) => kind)).toEqual(['delete', 'update', 'bulk_delete']);
+  expect(result.proposals[1]).toMatchObject({ entity: 'todo', patch: { details: 'Prepare CV' } });
   result.proposals.forEach((proposal) => expect(proposalSchema.safeParse(proposal).success).toBe(true));
 });

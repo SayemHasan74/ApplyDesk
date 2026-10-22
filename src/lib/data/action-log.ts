@@ -10,10 +10,10 @@ export type AuditWrite = Pick<ActionLogDocument, 'docId' | 'seq'> & {
   entity: typeof ACTION_LOG_ENTITIES[number]; op: typeof ACTION_OPS[number];
   before: Record<string, unknown> | null; after: Record<string, unknown> | null;
 };
-export async function saveActionLogs(userId: string, batchId: string, rows: AuditWrite[], session: ClientSession) {
+export async function saveActionLogs(userId: string, batchId: string, rows: AuditWrite[], session: ClientSession, demoExpiry?: Date | null) {
   objectId.parse(userId);
   if (!rows.length) return;
-  const expiresAt = new Date(Date.now() + 30 * 86400_000);
+  const expiresAt = new Date(Math.min(Date.now() + 30 * 86400_000, demoExpiry?.getTime() ?? Infinity));
   await logs.insertMany(rows.map((row) => ({ ...row, userId, batchId, undone: false, expiresAt })), { session, ordered: true });
 }
 export async function getUndoRows(userId: string, batchId: string | undefined, session: ClientSession) {
