@@ -1,9 +1,10 @@
-import { ChevronDown, Sun, Moon } from 'lucide-react';
+import { ChevronDown, Sun, Moon, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import type { CurrentUser } from '@/lib/auth/policy';
 import { NavLink } from './nav-link';
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
+import { ChatLauncher } from '../chat/chat-launcher';
 
 export function AppShell({ user, children }: { user: CurrentUser; children: React.ReactNode }) {
   return <>
@@ -18,6 +19,7 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
       </div>
       {user.role === 'demo' && <div className="border-t bg-muted px-5 py-2 text-center text-xs text-muted-foreground">Demo mode: sample data, resets after 24 hours</div>}
     </header>
-    <main id="main-content" className="app-width py-8 sm:py-10">{children}</main>
+    <main id="main-content" className="app-width pb-28 pt-8 sm:pt-10">{children}</main>
+    <ChatLauncher role={user.role} icon={<MessageCircle className="size-6" aria-hidden="true" />} />
   </>;
 }

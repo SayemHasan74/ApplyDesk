@@ -31,9 +31,7 @@ export const actionItemSchema = z.union([
 export const applyBodySchema = z.object({ items: z.array(z.unknown()).min(1).max(30) }).strict();
 export const undoBodySchema = z.object({ batchId: z.uuid().optional() }).strict();
 export const settingSnapshotSchema = settingsSchema.extend({ key: z.enum(AI_SETTING_KEYS) }).strict();
-export const actionResultSchema = z.union([
-  z.object({ index: z.number().int().nonnegative(), ok: z.literal(true), id: objectId.optional() }).strict(),
-  z.object({ index: z.number().int().nonnegative(), ok: z.literal(false), error: z.object({ code: z.string().max(120), message: z.string().max(4000) }).strict() }).strict(),
-]);
+import { actionResultSchema } from '../client/ai-contract';
+export { actionResultSchema } from '../client/ai-contract';
 export type ActionItem = z.infer<typeof actionItemSchema>;
 export type ActionResult = z.infer<typeof actionResultSchema>;

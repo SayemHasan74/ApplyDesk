@@ -25,6 +25,12 @@ export const AI_FIELD_SOURCES = ['url', 'image', 'voice', 'text'] as const;
 export const AI_QUERY_SORTS = ['deadline', 'name', 'created'] as const;
 export const AI_SETTING_KEYS = ['groundingEnabled', 'aiDailyLimit'] as const;
 export const AI_SUGGESTION_DECISIONS = ['accept', 'dismiss'] as const;
+export const CHAT_EXAMPLE_COMMANDS = ['Add Microsoft 2027 internships', 'Mark Contoso as applied', 'Move all overdue to-dos to tomorrow'] as const;
+export const DEMO_CHAT_EXAMPLES = [
+  ['Add this job screenshot', 'Review a job proposal with the details found in your screenshot.'],
+  ['Mark Contoso as applied', 'Review a status change for your tracked Contoso role.'],
+  ['Move all overdue to-dos to tomorrow', 'Review the matching tasks and their proposed new dates.'],
+] as const;
 export const TIMEZONE = 'Asia/Dhaka';
 export const MAX_LIST = 500;
 export const DEMO_TTL_HOURS = 24;

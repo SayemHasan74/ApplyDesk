@@ -1,0 +1,19 @@
+.chat-launcher { position: fixed; right: max(24px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); z-index: 40; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); box-shadow: 0 5px 22px #0003; transition: background-color 150ms; }
+.chat-launcher[hidden] { display: none; }
+.chat-launcher:hover { opacity: .9; }
+body:has(.chat-panel[open]) { overflow: hidden; }
+.chat-panel { position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0; width: min(400px, 100%); height: 100dvh; max-width: none; max-height: none; border: 0; border-left: 1px solid var(--border); color: var(--foreground); background: var(--card); overflow: hidden; }
+.chat-panel[open] { animation: chat-enter 180ms ease-out; }
+.chat-panel::backdrop { background: #0006; }
+.chat-panel .chat-composer { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+.chat-panel header { padding-top: max(16px, env(safe-area-inset-top)); }
+.chat-icon-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 44px; min-height: 44px; border: 1px solid var(--border); border-radius: 5px; }
+.chat-secondary { min-height: 44px; padding: 0 10px; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.chat-icon-button:hover, .chat-secondary:hover { background: var(--secondary); }
+.chat-icon-button:disabled, .chat-secondary:disabled { opacity: .5; }
+.chat-message { min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 8px; overflow-wrap: anywhere; }
+.chat-message-user { margin-left: 24px; background: var(--background); }
+.chat-proposal { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); }
+.chat-proposal.border-destructive { border-color: var(--destructive); }
+@keyframes chat-enter { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@media (max-width: 639px) { .chat-panel { width: 100%; } .chat-launcher { right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); } }
