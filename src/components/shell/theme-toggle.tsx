@@ -1,7 +1,6 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import { Moon, Sun } from 'lucide-react';
 
 function subscribe(listener: () => void) {
   window.addEventListener('applydesk-theme', listener);
@@ -10,7 +9,7 @@ function subscribe(listener: () => void) {
 const snapshot = () => document.documentElement.classList.contains('dark');
 const serverSnapshot = () => false;
 
-export function ThemeToggle() {
+export function ThemeToggle({ lightIcon, darkIcon }: { lightIcon: React.ReactNode; darkIcon: React.ReactNode }) {
   const dark = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   function toggle() {
     const next = !dark;
@@ -19,6 +18,6 @@ export function ThemeToggle() {
     window.dispatchEvent(new Event('applydesk-theme'));
   }
   return <button type="button" className="flex size-11 items-center justify-center rounded hover:bg-muted" onClick={toggle} aria-label={`Switch to ${dark ? 'light' : 'dark'} mode`}>
-    {dark ? <Sun className="size-4" aria-hidden="true" /> : <Moon className="size-4" aria-hidden="true" />}
+    {dark ? lightIcon : darkIcon}
   </button>;
 }

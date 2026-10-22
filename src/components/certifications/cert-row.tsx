@@ -1,16 +1,15 @@
 'use client';
 
 import { memo, useCallback } from 'react';
-import { Trash2 } from 'lucide-react';
 import { CERT_STATUSES, type CertStatus } from '@/lib/constants';
 import type { CertItem } from '@/lib/certifications/items';
-import { formatDisplay } from '@/lib/dates';
+import { formatDisplay } from '@/lib/date-only';
 import { ExpandableText } from '@/components/ui/expandable-text';
 import { CertProgress } from './cert-progress';
 import { CertDeadlineBadge } from './deadline-badge';
 
-export const CertRow = memo(function CertRow({ cert, today, pending, onOpen, onDelete, onStatus }: {
-  cert: CertItem; today: string; pending: boolean;
+export const CertRow = memo(function CertRow({ cert, today, pending, deleteIcon, onOpen, onDelete, onStatus }: {
+  cert: CertItem; today: string; pending: boolean; deleteIcon: React.ReactNode;
   onOpen: (id: string) => void; onDelete: (id: string) => void; onStatus: (id: string, status: CertStatus) => void;
 }) {
   const open = useCallback(() => { if (!pending) onOpen(cert.id); }, [cert.id, onOpen, pending]);
@@ -38,6 +37,6 @@ export const CertRow = memo(function CertRow({ cert, today, pending, onOpen, onD
       {CERT_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
     </select></td>
     <td className="hidden py-5 px-2 align-top md:table-cell"><CertProgress value={cert.progressPercent} /></td>
-    <td className="py-5 pl-1 align-top"><button type="button" className="flex size-11 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive" onClick={remove} disabled={pending} aria-label={`Delete ${cert.name}, ${cert.provider}`}><Trash2 className="size-4" aria-hidden="true" /></button></td>
+    <td className="py-5 pl-1 align-top"><button type="button" className="flex size-11 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive" onClick={remove} disabled={pending} aria-label={`Delete ${cert.name}, ${cert.provider}`}>{deleteIcon}</button></td>
   </tr>;
 });

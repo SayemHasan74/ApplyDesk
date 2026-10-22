@@ -1,15 +1,14 @@
 'use client';
 
 import { memo, useCallback, useState } from 'react';
-import { MoreHorizontal, Trash2 } from 'lucide-react';
 import { PRIORITIES } from '@/lib/constants';
 import type { TodoItem } from '@/lib/todos/items';
 import type { TodoPatch } from '@/lib/validators/todo';
 import { ExpandableText } from '@/components/ui/expandable-text';
 import { TodoInlineTitle } from './todo-inline-title';
 
-export const TodoRow = memo(function TodoRow({ item, pending, onPatch, onDelete, onOpen }: {
-  item: TodoItem; pending: boolean; onPatch: (id: string, patch: TodoPatch) => Promise<boolean>;
+export const TodoRow = memo(function TodoRow({ item, pending, icons, onPatch, onDelete, onOpen }: {
+  item: TodoItem; pending: boolean; icons: { details: React.ReactNode; remove: React.ReactNode }; onPatch: (id: string, patch: TodoPatch) => Promise<boolean>;
   onDelete: (id: string) => void; onOpen: (id: string) => void;
 }) {
   const title = useCallback((value: string) => onPatch(item.id, { title: value }), [item.id, onPatch]);
@@ -26,7 +25,7 @@ export const TodoRow = memo(function TodoRow({ item, pending, onPatch, onDelete,
           <TodoTag key={item.tag ?? ''} value={item.tag ?? ''} title={item.title} pending={pending} onSave={tag} />
         </div>
       </div>
-      <div className="flex flex-col sm:flex-row"><button type="button" className="flex size-11 items-center justify-center rounded hover:bg-muted" aria-label={`Edit details for ${item.title}`} onClick={open} disabled={pending}><MoreHorizontal className="size-4" aria-hidden="true" /></button><button type="button" className="flex size-11 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive" aria-label={`Delete ${item.title}`} onClick={remove} disabled={pending}><Trash2 className="size-4" aria-hidden="true" /></button></div>
+      <div className="flex flex-col sm:flex-row"><button type="button" className="flex size-11 items-center justify-center rounded hover:bg-muted" aria-label={`Edit details for ${item.title}`} onClick={open} disabled={pending}>{icons.details}</button><button type="button" className="flex size-11 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive" aria-label={`Delete ${item.title}`} onClick={remove} disabled={pending}>{icons.remove}</button></div>
     </div>
   </li>;
 });

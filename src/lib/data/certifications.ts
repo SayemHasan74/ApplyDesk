@@ -11,7 +11,7 @@ import { objectId } from '../validators/fields';
 import { certItemSchema } from '../certifications/items';
 import { applyCertStatusEffects } from '../certifications/effects';
 import { scopedFilter } from './scope';
-import { displayDocument } from './serialize';
+import { displayDocument } from '../serialize';
 
 const model = Certification as Model<CertificationDocument>;
 const fields = [...Object.keys(certCreateSchema.shape), 'createdAt', 'updatedAt'];

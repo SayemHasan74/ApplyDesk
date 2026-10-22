@@ -84,6 +84,7 @@
   a, button, input, select, textarea { touch-action: manipulation; }
 }
 @layer components {
+  .action-button { @apply inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-primary px-3 text-sm font-medium whitespace-nowrap text-primary-foreground transition-colors hover:bg-primary/80 disabled:pointer-events-none disabled:opacity-50; }
   .expandable-copy { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
   .app-width { @apply mx-auto w-full max-w-[1120px] px-5 sm:px-6; }
   .page-title { @apply text-[28px] leading-tight font-semibold; }

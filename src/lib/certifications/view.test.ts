@@ -28,12 +28,12 @@ it('round trips all form fields and sends only changed values', () => {
 });
 it('applies optimistic completion, respects explicit progress, replaces creates and removes deletes', () => {
   const update = { kind: 'update' as const, id: item.id, input: { status: 'completed' as const } };
-  const done = optimisticCerts([item], update, item.id, now)[0];
+  const done = optimisticCerts([item], update, item.id, now, '2026-10-21')[0];
   expect(done.progressPercent).toBe(100); expect(done.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   const create = { kind: 'create' as const, input: certCreateSchema.parse({ name: 'N', provider: 'P' }) };
-  const optimistic = optimisticCerts([item], create, '0123456789abcdef01234568', now);
+  const optimistic = optimisticCerts([item], create, '0123456789abcdef01234568', now, '2026-10-21');
   const server = { ...optimistic[0], id: '0123456789abcdef01234569' };
   expect(replaceCert(optimistic, create, optimistic[0].id, server)).toEqual([server, item]);
-  expect(optimisticCerts([item], { kind: 'delete', id: item.id }, item.id, now)).toEqual([]);
+  expect(optimisticCerts([item], { kind: 'delete', id: item.id }, item.id, now, '2026-10-21')).toEqual([]);
   expect(item.progressPercent).toBe(0);
 });

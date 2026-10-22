@@ -1,15 +1,14 @@
 'use client';
 
 import { memo, useCallback } from 'react';
-import { Trash2 } from 'lucide-react';
 import { JOB_STATUSES, type JobStatus } from '@/lib/constants';
 import type { JobItem } from '@/lib/jobs/items';
-import { formatDisplay } from '@/lib/dates';
+import { formatDisplay } from '@/lib/date-only';
 import { ExpandableText } from '@/components/ui/expandable-text';
 import { DeadlineBadge } from './deadline-badge';
 
-export const JobRow = memo(function JobRow({ job, today, pending, onOpen, onDelete, onStatus }: {
-  job: JobItem; today: string; pending: boolean;
+export const JobRow = memo(function JobRow({ job, today, pending, deleteIcon, onOpen, onDelete, onStatus }: {
+  job: JobItem; today: string; pending: boolean; deleteIcon: React.ReactNode;
   onOpen: (id: string) => void; onDelete: (id: string) => void; onStatus: (id: string, status: JobStatus) => void;
 }) {
   const open = useCallback(() => { if (!pending) onOpen(job.id); }, [job.id, onOpen, pending]);
@@ -35,6 +34,6 @@ export const JobRow = memo(function JobRow({ job, today, pending, onOpen, onDele
     <td className="py-5 align-top"><select className="form-control min-w-0 px-1 text-xs sm:px-2 sm:text-sm" aria-label={`Status for ${job.company}, ${job.role}`} value={job.status} onChange={change} disabled={pending}>
       {JOB_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
     </select></td>
-    <td className="py-5 pl-1 align-top"><button type="button" className="flex size-11 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive" onClick={remove} disabled={pending} aria-label={`Delete ${job.company}, ${job.role}`}><Trash2 className="size-4" aria-hidden="true" /></button></td>
+    <td className="py-5 pl-1 align-top"><button type="button" className="flex size-11 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive" onClick={remove} disabled={pending} aria-label={`Delete ${job.company}, ${job.role}`}>{deleteIcon}</button></td>
   </tr>;
 });

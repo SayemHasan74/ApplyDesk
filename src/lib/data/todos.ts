@@ -11,7 +11,7 @@ import { objectId } from '../validators/fields';
 import { todoItemSchema } from '../todos/items';
 import { applyTodoStatusEffects } from '../todos/effects';
 import { scopedFilter } from './scope';
-import { displayDocument } from './serialize';
+import { displayDocument } from '../serialize';
 
 const model: Model<TodoDocument> = Todo;
 const jobs = Job as Model<JobDocument>;

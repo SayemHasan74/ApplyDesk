@@ -10,7 +10,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:indexes": "tsx --conditions=react-server --env-file=.env.local scripts/sync-indexes.ts"
+    "db:indexes": "tsx --conditions=react-server --env-file=.env.local --eval \"require('./scripts/sync-indexes.ts')\""
   },
   "dependencies": {
     "@google/genai": "2.30.0",

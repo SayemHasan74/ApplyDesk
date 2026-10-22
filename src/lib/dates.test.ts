@@ -20,6 +20,7 @@ describe('calendar dates', () => {
   it('formats dates and reads today in Dhaka', () => {
     expect(formatDisplay('2026-10-21')).toBe('21 Oct 2026');
     expect(formatDisplay('0099-12-31')).toBe('31 Dec 0099');
+    expect(formatDisplay('2026-09-01')).toBe('01 Sep 2026');
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-12-31T18:01:00Z'));
     expect(todayDhaka()).toBe('2027-01-01');

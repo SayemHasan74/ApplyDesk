@@ -1,5 +1,5 @@
 import type { DEADLINE_BADGES, TODO_VIEWS } from './constants';
-import { daysBetween } from './dates';
+import { daysBetween } from './date-only';
 import type { JobDocument } from './models/jobs';
 import type { CertificationDocument } from './models/certifications';
 import type { TodoDocument } from './models/todos';

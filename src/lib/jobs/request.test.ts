@@ -1,5 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { sendJobAction } from './request';
+import './actions';
+import './items';
 
 afterEach(() => vi.unstubAllGlobals());
 
