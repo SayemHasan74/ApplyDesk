@@ -1,6 +1,6 @@
 import 'server-only';
 import { z } from 'zod';
-import { AI_INTENTS, ENTITIES, PRIORITIES } from '../constants';
+import { AI_INTENTS, AI_SETTING_KEYS, AI_SUGGESTION_DECISIONS, ENTITIES, PRIORITIES } from '../constants';
 import { settingSchema } from './schema';
 import { objectId } from '../validators/fields';
 
@@ -17,8 +17,8 @@ export const proposalSchema = z.discriminatedUnion('kind', [
   z.object({ id, kind: z.literal('bulk_update'), entity, items: z.array(item).min(1).max(25), patch: object, description: z.string().max(4000) }).strict(),
   z.object({ id, kind: z.literal('bulk_delete'), entity, items: z.array(item).min(1).max(25), description: z.string().max(4000) }).strict(),
   z.object({ id, kind: z.literal('undo_last') }).strict(),
-  z.object({ id, kind: z.literal('setting'), key: z.enum(['groundingEnabled', 'aiDailyLimit']), before: z.union([z.boolean(), z.number()]), value: z.union([z.boolean(), z.number()]) }).strict().refine((value) => settingSchema.safeParse({ key: value.key, value: value.value }).success),
-  z.object({ id, kind: z.literal('suggestion'), suggestionId: objectId, decision: z.enum(['accept', 'dismiss']), label }).strict(),
+  z.object({ id, kind: z.literal('setting'), key: z.enum(AI_SETTING_KEYS), before: z.union([z.boolean(), z.number()]), value: z.union([z.boolean(), z.number()]) }).strict().refine((value) => settingSchema.safeParse({ key: value.key, value: value.value }).success),
+  z.object({ id, kind: z.literal('suggestion'), suggestionId: objectId, decision: z.enum(AI_SUGGESTION_DECISIONS), label }).strict(),
   z.object({ id, kind: z.literal('run_sync_gmail') }).strict(),
 ]);
 export const queryResultSchema = z.object({ entity, items: z.array(item.extend({ detail: z.string() })).max(500), text: z.string() }).strict();
