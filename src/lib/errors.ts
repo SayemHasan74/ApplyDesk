@@ -6,3 +6,7 @@ export class AppError extends Error {
     this.name = 'AppError';
   }
 }
+
+export class AiServiceError extends AppError {
+  constructor() { super('INTERNAL', 'The AI could not answer. Please try again or add it manually.'); }
+}
