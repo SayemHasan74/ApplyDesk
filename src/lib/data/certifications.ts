@@ -3,13 +3,12 @@ import type { Model } from 'mongoose';
 import { connectDb } from '../db';
 import { MAX_LIST } from '../constants';
 import { todayDhaka } from '../dates';
-import { certDedupeKey } from '../dedupe';
 import { AppError } from '../errors';
 import { Certification, type CertificationDocument } from '../models/certifications';
 import { certCreateSchema, certPatchSchema, type CertCreate, type CertPatch } from '../validators/certification';
 import { objectId } from '../validators/fields';
 import { certItemSchema } from '../certifications/items';
-import { applyCertStatusEffects } from '../certifications/effects';
+import { prepareCertCreate, prepareCertPatch } from '../certifications/writes';
 import { scopedFilter } from './scope';
 import { displayDocument } from '../serialize';
 
@@ -39,8 +38,7 @@ export async function createCert(userId: string, input: CertCreate, expiresAt?: 
   const values = certCreateSchema.parse(input);
   await connectDb();
   try {
-    const item = await model.create({ ...values, ...applyCertStatusEffects({ completedAt: null, progressPercent: 0 }, values, todayDhaka()),
-      userId, dedupeKey: certDedupeKey(values.provider, values.name), ...(expiresAt ? { expiresAt } : {}),
+    const item = await model.create({ ...prepareCertCreate(values, todayDhaka()), userId, ...(expiresAt ? { expiresAt } : {}),
     });
     return serialize(item.toObject());
   } catch (error) { return writeError(error); }
@@ -48,12 +46,7 @@ export async function createCert(userId: string, input: CertCreate, expiresAt?: 
 export async function updateCert(userId: string, id: string, patch: CertPatch) {
   const values = certPatchSchema.parse(patch);
   const current = await getCert(userId, id);
-  const effects = applyCertStatusEffects(current, values, todayDhaka());
-  const changes: Record<string, unknown> = {};
-  for (const key of Object.keys(certPatchSchema.shape) as (keyof CertPatch)[]) {
-    if (effects[key] !== undefined) changes[key] = effects[key];
-  }
-  if (values.provider !== undefined || values.name !== undefined) changes.dedupeKey = certDedupeKey(values.provider ?? current.provider, values.name ?? current.name);
+  const changes = prepareCertPatch(current, values, todayDhaka());
   if (!Object.keys(changes).length) return current;
   try {
     const item = await model.findOneAndUpdate(scopedFilter(userId, { _id: id }), { $set: changes }, { returnDocument: 'after', runValidators: true }).select(projection).lean();

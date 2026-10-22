@@ -1,5 +1,5 @@
 import 'server-only';
-import type { Model } from 'mongoose';
+import type { Model, ClientSession } from 'mongoose';
 import { connectDb } from '../db';
 import { MAX_LIST } from '../constants';
 import { AppError } from '../errors';
@@ -20,11 +20,20 @@ const fields = [...Object.keys(todoCreateSchema.shape), 'completedAt', 'createdA
 const projection = [...fields, '_id'].join(' ');
 const serialize = (value: Record<string, unknown>) => todoItemSchema.parse(displayDocument(value, fields));
 
-async function verifyLinks(userId: string, values: TodoPatch) {
-  const [job, cert] = await Promise.all([
-    values.linkedJobId ? jobs.findOne(scopedFilter(userId, { _id: values.linkedJobId })).select('_id').lean() : true,
-    values.linkedCertId ? certifications.findOne(scopedFilter(userId, { _id: values.linkedCertId })).select('_id').lean() : true,
-  ]);
+export async function verifyTodoLinks(userId: string, values: TodoPatch, session?: ClientSession) {
+  const jobLookup = () => {
+    if (!values.linkedJobId) return true;
+    const query = jobs.findOne(scopedFilter(userId, { _id: values.linkedJobId })).select('_id');
+    if (session) query.session(session);
+    return query.lean();
+  };
+  const certLookup = () => {
+    if (!values.linkedCertId) return true;
+    const query = certifications.findOne(scopedFilter(userId, { _id: values.linkedCertId })).select('_id');
+    if (session) query.session(session);
+    return query.lean();
+  };
+  const [job, cert] = session ? [await jobLookup(), await certLookup()] : await Promise.all([jobLookup(), certLookup()]);
   if (!job || !cert) throw new AppError('VALIDATION', 'Linked items must belong to your account');
 }
 export async function listTodos(userId: string) {
@@ -34,7 +43,7 @@ export async function listTodos(userId: string) {
 export async function createTodo(userId: string, input: TodoCreate, expiresAt?: Date | null) {
   const values = todoCreateSchema.parse(input);
   await connectDb();
-  await verifyLinks(userId, values);
+  await verifyTodoLinks(userId, values);
   const item = await model.create({ ...values, ...applyTodoStatusEffects({ status: 'todo', completedAt: null }, values, new Date().toISOString()),
     userId, ...(expiresAt ? { expiresAt } : {}),
   });
@@ -46,7 +55,7 @@ export async function updateTodo(userId: string, id: string, patch: TodoPatch) {
   await connectDb();
   const current = await model.findOne(scopedFilter(userId, { _id: id })).select(projection).lean();
   if (!current) throw new AppError('NOT_FOUND', 'To-do not found');
-  await verifyLinks(userId, values);
+  await verifyTodoLinks(userId, values);
   const effects = applyTodoStatusEffects(serialize(current), values, new Date().toISOString());
   const changes: Record<string, unknown> = {};
   for (const key of Object.keys(todoPatchSchema.shape) as (keyof TodoPatch)[]) {

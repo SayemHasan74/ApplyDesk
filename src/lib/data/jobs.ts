@@ -3,7 +3,7 @@ import { Types, type Model } from 'mongoose';
 import { connectDb } from '../db';
 import { MAX_LIST } from '../constants';
 import { todayDhaka } from '../dates';
-import { jobDedupeKey } from '../dedupe';
+import { prepareJobCreate, prepareJobPatch } from '../jobs/effects';
 import { AppError } from '../errors';
 import { Job, type JobDocument } from '../models/jobs';
 import { jobCreateSchema, jobIdSchema, jobPatchSchema, type JobCreate, type JobPatch } from '../validators/job';
@@ -47,9 +47,8 @@ export async function createJob(userId: string, input: JobCreate, expiresAt?: Da
   const values = jobCreateSchema.parse(input);
   await connectDb();
   try {
-    const job = await model.create({ ...values, userId, dedupeKey: jobDedupeKey(values.company, values.role),
+    const job = await model.create({ ...prepareJobCreate(values, todayDhaka()), userId,
       ...(expiresAt ? { expiresAt } : {}),
-      appliedAt: values.status === 'applied' && !values.appliedAt ? todayDhaka() : values.appliedAt,
     });
     return serialize(job.toObject());
   } catch (error) { return writeError(error); }
@@ -58,14 +57,7 @@ export async function createJob(userId: string, input: JobCreate, expiresAt?: Da
 export async function updateJob(userId: string, id: string, patch: JobPatch) {
   const values = jobPatchSchema.parse(patch);
   const current = await getJob(userId, id);
-  const changes: Record<string, unknown> = {};
-  for (const key of Object.keys(jobPatchSchema.shape) as (keyof JobPatch)[]) {
-    if (values[key] !== undefined) changes[key] = values[key];
-  }
-  if (values.company !== undefined || values.role !== undefined) {
-    changes.dedupeKey = jobDedupeKey(values.company ?? current.company, values.role ?? current.role);
-  }
-  if (values.status === 'applied' && !(values.appliedAt === undefined ? current.appliedAt : values.appliedAt)) changes.appliedAt = todayDhaka();
+  const changes = prepareJobPatch(current, values, todayDhaka());
   if (!Object.keys(changes).length) return current;
   try {
     const job = await model.findOneAndUpdate(scopedFilter(userId, { _id: id }), { $set: changes }, { new: true, runValidators: true }).select(fields).lean();
