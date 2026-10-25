@@ -1,4 +1,4 @@
-.chat-launcher { position: fixed; right: max(24px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); z-index: 40; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); box-shadow: 0 5px 22px #0003; transition: background-color 150ms; }
+.chat-launcher { position: fixed; right: max(24px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); z-index: 40; display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 56px; height: 56px; padding: 0 16px; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 600; box-shadow: 0 5px 22px #0003; transition: background-color 150ms; }
 .chat-launcher[hidden] { display: none; }
 .chat-launcher:hover { opacity: .9; }
 body:has(.chat-panel[open]) { overflow: hidden; }

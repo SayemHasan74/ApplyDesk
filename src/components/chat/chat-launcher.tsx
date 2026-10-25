@@ -10,7 +10,7 @@ const ChatPanel = dynamic(loadPanel, { ssr: false, loading: () => <div className
 export function ChatLauncher({ role, icon }: { role: Role; icon: React.ReactNode }) {
   const [mounted, setMounted] = useState(false), [open, setOpen] = useState(false), button = useRef<HTMLButtonElement>(null);
   function close() { setOpen(false); requestAnimationFrame(() => button.current?.focus()); }
-  return <><button ref={button} type="button" className="chat-launcher" aria-label="Open ApplyDesk assistant" aria-haspopup="dialog" aria-expanded={open} hidden={open} onMouseEnter={preloadPanel} onFocus={preloadPanel} onClick={() => { setMounted(true); setOpen(true); }}>{icon}</button>
+  return <><button ref={button} type="button" className="chat-launcher" aria-label="Open ApplyDesk assistant" aria-haspopup="dialog" aria-expanded={open} hidden={open} onMouseEnter={preloadPanel} onFocus={preloadPanel} onClick={() => { setMounted(true); setOpen(true); }}>{icon}<span className="hidden sm:inline">Ask the assistant</span></button>
     {mounted && <ChatPanel open={open} role={role} onClose={close} />}
   </>;
 }

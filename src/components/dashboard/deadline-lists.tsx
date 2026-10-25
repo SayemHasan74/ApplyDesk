@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { formatDisplay } from '@/lib/dates';
 import type { JobItem } from '@/lib/jobs/items';
 import type { CertItem } from '@/lib/certifications/items';
@@ -7,7 +8,7 @@ import { CertDeadlineBadge } from '@/components/certifications/deadline-badge';
 import { ExpandableText } from '@/components/ui/expandable-text';
 
 export function DeadlineLists({ jobs, certs, today }: { jobs: JobItem[]; certs: CertItem[]; today: string }) {
-  return <div className="grid gap-4 lg:grid-cols-2">
+  return <div className="grid gap-4 min-[900px]:grid-cols-2">
     <DeadlinePanel title="Closest job deadlines" href="/jobs">
       {jobs.length ? <ul className="divide-y">{jobs.map((job) => <li key={job.id} className="flex items-center justify-between gap-3 py-4">
         <div className="min-w-0"><div className="font-semibold"><ExpandableText text={job.company} lines={2} /></div><div className="text-sm text-muted-foreground"><ExpandableText text={job.role} lines={2} /></div><p className="mt-1 text-xs text-muted-foreground">{job.deadline && formatDisplay(job.deadline)}</p></div>
@@ -23,5 +24,5 @@ export function DeadlineLists({ jobs, certs, today }: { jobs: JobItem[]; certs: 
   </div>;
 }
 function DeadlinePanel({ title, href, children }: { title: string; href: string; children: React.ReactNode }) {
-  return <section className="panel px-5 py-5 sm:px-6" aria-label={title}><div className="mb-2 flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">{title}</h2><Link href={href} prefetch={false} className="min-h-11 shrink-0 py-3 text-sm underline">View all</Link></div>{children}</section>;
+  return <section className="panel px-5 py-5 sm:px-6" aria-label={title}><div className="dashboard-heading"><h2 className="text-xl font-semibold">{title}</h2><Link href={href} prefetch={false} className="dashboard-link">View all<ArrowRight className="size-3.5" aria-hidden="true" /></Link></div>{children}</section>;
 }
