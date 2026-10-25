@@ -8,7 +8,7 @@ import { CertDeadlineBadge } from '@/components/certifications/deadline-badge';
 import { ExpandableText } from '@/components/ui/expandable-text';
 
 export function DeadlineLists({ jobs, certs, today }: { jobs: JobItem[]; certs: CertItem[]; today: string }) {
-  return <div className="grid gap-4 min-[900px]:grid-cols-2">
+  return <div className="grid gap-4 min-[56.25rem]:grid-cols-2">
     <DeadlinePanel title="Closest job deadlines" href="/jobs">
       {jobs.length ? <ul className="divide-y">{jobs.map((job) => <li key={job.id} className="flex items-center justify-between gap-3 py-4">
         <div className="min-w-0"><div className="font-semibold"><ExpandableText text={job.company} lines={2} /></div><div className="text-sm text-muted-foreground"><ExpandableText text={job.role} lines={2} /></div><p className="mt-1 text-xs text-muted-foreground">{job.deadline && formatDisplay(job.deadline)}</p></div>

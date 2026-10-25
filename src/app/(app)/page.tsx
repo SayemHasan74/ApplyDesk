@@ -31,7 +31,7 @@ export default async function Dashboard() {
   ];
   return <div className="space-y-7">
     <div className="flex items-center justify-between gap-4"><h1 className="page-title">Dashboard</h1><span className="flex items-center gap-2 text-xs text-muted-foreground"><CalendarDays className="hidden size-4 sm:block" aria-hidden="true" />{formatDisplay(today)}</span></div>
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 min-[900px]:grid-cols-5 sm:gap-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 min-[56.25rem]:grid-cols-5 sm:gap-4">
       {tiles.map(({ label, count, href, urgent, icon: Icon }) => <Link key={label} href={href} prefetch={false} className="panel min-h-28 px-4 py-4 transition-colors hover:bg-secondary sm:px-5">
         <div className="flex items-center justify-between gap-3"><span className={`block text-3xl font-semibold tabular-nums ${urgent && count > 0 ? 'text-destructive' : ''}`}>{count}</span><Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /></div><span className="mt-2 block text-xs leading-relaxed text-muted-foreground">{label}</span>
       </Link>)}
