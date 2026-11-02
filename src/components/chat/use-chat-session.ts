@@ -31,7 +31,7 @@ export function useChatSession(role: Role) {
     const imageUrl = image ? URL.createObjectURL(image) : undefined; if (imageUrl) previews.current.push(imageUrl);
     setMessages((old) => [...old, { id, role: 'user', text, imageUrl }]); setPending(true);
     let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; abort.abort(); }, 40_000);
+    const timer = setTimeout(() => { timedOut = true; abort.abort(); }, 55_000);
     try {
       const response = await sendChat(body, abort.signal);
       if (!active.current) return true;
@@ -40,6 +40,10 @@ export function useChatSession(role: Role) {
     } catch (error) {
       if (!active.current) return true;
       const message = abort.signal.aborted ? timedOut ? 'The AI took too long. Please try again or add it manually.' : 'Stopped. You can send another message.' : chatError(error);
+      if (error instanceof ChatRequestError && error.remaining !== undefined) {
+        setRemaining(error.remaining);
+        if (!error.remaining) setLimit('No AI calls left today. Your manual lists still work.');
+      }
       if (error instanceof ChatRequestError && error.code === 'AI_LIMIT') { setLimit(message); setRemaining(0); }
       toast.error(message);
       setMessages((old) => [...old, { id: crypto.randomUUID(), role: 'assistant', text: message }]);

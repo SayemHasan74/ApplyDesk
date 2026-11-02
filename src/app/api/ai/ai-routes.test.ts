@@ -14,12 +14,12 @@ import { admin } from '@/lib/ai/test-fixtures';
 function request(form = new FormData(), headers: Record<string, string> = { Origin: 'https://app.test' }) {
   return new Request('https://app.test/api/ai/chat', { method: 'POST', body: form, headers });
 }
-beforeEach(() => { vi.resetAllMocks(); mocks.user.mockResolvedValue(admin); mocks.pipeline.mockResolvedValue({ proposals: [], remaining: 1 }); });
+beforeEach(() => { vi.resetAllMocks(); mocks.user.mockResolvedValue(admin); mocks.pipeline.mockResolvedValue({ proposals: [], remaining: 1 }); mocks.usage.mockResolvedValue({ remaining: 1 }); });
 it('wraps multipart chat in origin/auth/size/content checks with no-store JSON', async () => {
   const form = new FormData(); form.set('text', 'x'.repeat(15000));
   const response = await POST(request(form));
   expect(response.status).toBe(200); expect(response.headers.get('cache-control')).toBe('no-store');
-  expect(mocks.pipeline).toHaveBeenCalledWith(admin, { text: 'x'.repeat(15000) });
+  expect(mocks.pipeline).toHaveBeenCalledWith(admin, { text: 'x'.repeat(15000) }, expect.any(AbortSignal));
   expect(maxDuration).toBe(60); expect(runtime).toBe('nodejs');
 });
 it('rejects anonymous and cross-origin calls before pipeline execution', async () => {
@@ -42,6 +42,17 @@ it('returns AI_LIMIT with HTTP 429 and never exposes provider secrets', async ()
   const form = new FormData(); form.set('text', 'hi'); mocks.pipeline.mockRejectedValue(new AiLimitError('demo'));
   const response = await POST(request(form));
   expect(response.status).toBe(429); expect(await response.json()).toMatchObject({ ok: false, error: { code: 'AI_LIMIT' } });
+  expect(response.headers.get('x-ai-remaining')).toBe('1');
+});
+it('returns the updated budget in the same failed chat response', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  try {
+    mocks.usage.mockResolvedValue({ remaining: 0 }); mocks.pipeline.mockRejectedValue(new Error('Private provider details'));
+    const form = new FormData(); form.set('text', 'Hi'); const response = await POST(request(form));
+    expect(response.status).toBe(500); expect(response.headers.get('x-ai-remaining')).toBe('0');
+    expect(await response.json()).toEqual({ ok: false, error: { code: 'INTERNAL', message: 'An unexpected error occurred' } });
+    expect(log).toHaveBeenCalledWith('[AI_REQUEST]', expect.any(String));
+  } finally { log.mockRestore(); }
 });
 it('serves tenant usage and text history through authenticated no-store routes', async () => {
   mocks.usage.mockResolvedValue({ remaining: 4, limit: 18, scope: 'admin' }); mocks.history.mockResolvedValue([]);

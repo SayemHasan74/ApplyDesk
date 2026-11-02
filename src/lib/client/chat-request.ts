@@ -4,12 +4,16 @@ import type { ActionItem } from '../actions/schema';
 
 const failureSchema = z.object({ ok: z.literal(false), error: z.object({ code: z.string().max(120), message: z.string().max(4000) }).strict() }).strict();
 export class ChatRequestError extends Error {
-  constructor(readonly code: string, message: string) { super(message); }
+  constructor(readonly code: string, message: string, readonly remaining?: number) { super(message); }
 }
 async function read<T extends z.ZodType>(response: Response, schema: T): Promise<z.output<T>> {
   const value: unknown = await response.json();
   const failure = failureSchema.safeParse(value);
-  if (failure.success) throw new ChatRequestError(failure.data.error.code, failure.data.error.message);
+  if (failure.success) {
+    const raw = response.headers.get('x-ai-remaining');
+    const remaining = raw !== null && /^\d{1,3}$/.test(raw) && Number(raw) <= 100 ? Number(raw) : undefined;
+    throw new ChatRequestError(failure.data.error.code, failure.data.error.message, remaining);
+  }
   if (!response.ok) throw new Error('Request failed. Please try again.');
   const envelope = z.object({ ok: z.literal(true), data: z.unknown() }).strict().parse(value);
   return schema.parse(envelope.data);

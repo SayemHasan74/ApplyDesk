@@ -37,7 +37,7 @@ export function Composer({ pending, disabled, visible, remaining, limit, onSend,
     if (file) { event.preventDefault(); void attach(file); }
   }}>
     {preview && <div className="mb-2 flex items-start gap-2"><Image src={preview} alt="Pending screenshot" width={112} height={80} unoptimized className="max-h-20 w-28 rounded border object-contain" /><button type="button" className="chat-icon-button" aria-label="Remove image" disabled={pending || disabled} onClick={removeImage}><X className="size-4" /></button></div>}
-    {audio && <div className="mb-2 flex items-center justify-between gap-2 text-xs"><span>Voice recording ready</span><button type="button" className="chat-icon-button" aria-label="Remove voice recording" disabled={pending || disabled} onClick={() => setAudio(undefined)}><X className="size-4" /></button></div>}
+    {audio && <div className="mb-2 flex items-center justify-between gap-2 text-xs"><span>Voice recorded. Press Send to transcribe and interpret it.</span><button type="button" className="chat-icon-button" aria-label="Remove voice recording" disabled={pending || disabled} onClick={() => setAudio(undefined)}><X className="size-4" /></button></div>}
     <label className="sr-only" htmlFor="chat-message">Message the ApplyDesk assistant</label>
     <textarea id="chat-message" className="form-control min-h-24 resize-none" rows={3} maxLength={15000} value={text} disabled={disabled || pending || preparing || recording} placeholder="Type, paste a screenshot, or record a message…" onChange={(event) => setText(event.target.value)} onKeyDown={(event) => {
       if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void submit(); }
@@ -48,6 +48,6 @@ export function Composer({ pending, disabled, visible, remaining, limit, onSend,
       <span className="ml-auto text-xs text-muted-foreground" role="status">{preparing ? 'Preparing image…' : recording ? 'Recording / preparing audio…' : ''}</span>
       {pending ? <button type="button" className="chat-icon-button" aria-label="Stop AI request" onClick={onStop}><Square className="size-4" /></button> : <button type="button" className="action-button px-3" aria-label="Send message" disabled={disabled || preparing || recording || (!text.trim() && !image && !audio)} onClick={() => void submit()}><Send className="size-4" aria-hidden="true" /></button>}
     </div>
-    <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">{limit || (remaining === null ? 'Checking AI requests…' : `${remaining} AI requests left today`)}</p>
+    <p className="mt-2 text-xs text-muted-foreground" aria-live="polite" title="Each provider attempt counts, including fallbacks, response repairs and failed calls.">{limit || (remaining === null ? 'Checking AI calls…' : `${remaining} AI calls left today`)}</p>
   </div>;
 }

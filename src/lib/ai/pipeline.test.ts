@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 const mocks = vi.hoisted(() => ({ call: vi.fn(), context: vi.fn(), pages: vi.fn(), save: vi.fn(), settings: vi.fn(), usage: vi.fn() }));
 vi.mock('./gemini', () => ({ callGemini: mocks.call, GroundingUnavailable: class extends Error {} }));
@@ -12,10 +12,37 @@ import { GroundingUnavailable } from './gemini';
 import { fixtureContext, admin, demo } from './test-fixtures';
 
 const answer = { intent: 'act', assistant_message: 'Review this proposal.', todo_drafts: [{ title: 'Prepare CV' }] };
+afterEach(() => vi.useRealTimers());
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.context.mockResolvedValue(fixtureContext()); mocks.pages.mockResolvedValue({ pages: [], sources: [], urls: [], fetchNotes: '' });
   mocks.call.mockResolvedValue({ text: JSON.stringify(answer), sources: [] }); mocks.usage.mockResolvedValue({ remaining: 1 });
+});
+it('does not search the web for ordinary chat, local changes or to-do creation', () => {
+  for (const text of ['Hello', 'Backlog: update CV', 'Add a task to find internships', 'Mark this job as applied', 'Move all overdue to-dos to tomorrow', 'What is due today?']) {
+    expect(shouldGround({ text }, false, fixtureContext(), admin), text).toBe(false);
+  }
+  expect(shouldGround({ text: 'Add Microsoft 2027 internships' }, false, fixtureContext(), admin)).toBe(true);
+});
+it('requires an audio transcript and repairs its omission once', async () => {
+  mocks.call.mockResolvedValueOnce({ text: JSON.stringify(answer), sources: [] }).mockResolvedValueOnce({ text: JSON.stringify({ ...answer, transcript: 'Prepare CV' }), sources: [] });
+  const result = await runAiPipeline(admin, { audio: new File(['audio'], 'voice.wav', { type: 'audio/wav' }) });
+  expect(result.transcript).toBe('Prepare CV'); expect(mocks.call).toHaveBeenCalledTimes(2);
+  expect(mocks.call.mock.calls[1][0].parts.at(-1).text).toContain('Include the full audio transcript');
+});
+it('returns an explicit transcription failure after two missing transcripts', async () => {
+  const result = await runAiPipeline(admin, { audio: new File(['audio'], 'voice.wav', { type: 'audio/wav' }) });
+  expect(result.transcript).toBeNull(); expect(result.proposals).toEqual([]);
+  expect(result.assistantMessage).toContain('could not transcribe'); expect(mocks.call).toHaveBeenCalledTimes(2);
+});
+it('shares one 50-second deadline across the first attempt and repair', async () => {
+  vi.useFakeTimers();
+  mocks.call.mockImplementationOnce(async () => { await new Promise((resolve) => setTimeout(resolve, 40_000)); return { text: 'invalid', sources: [] }; })
+    .mockImplementationOnce(({ signal }) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('Deadline')))));
+  const pending = runAiPipeline(admin, { text: 'Add a task' }).catch((error: unknown) => error);
+  await vi.advanceTimersByTimeAsync(50_000);
+  expect(await pending).toMatchObject({ message: 'Deadline' }); expect(mocks.call).toHaveBeenCalledTimes(2);
+  expect(mocks.call.mock.calls[0][0].signal).toBe(mocks.call.mock.calls[1][0].signal);
 });
 it('selects JSON mode for media, usable pages, long text, disabled search and demo', () => {
   const context = fixtureContext();
@@ -64,5 +91,5 @@ it('returns LinkedIn notes, stores full transcript only as bounded text history 
   expect(result.transcript).toBe('আবেদন করুন'); expect(result.assistantMessage).toContain('LinkedIn blocks');
   expect(result.proposals.map(({ kind }) => kind)).toEqual(['create', 'undo_last']);
   expect(mocks.save).toHaveBeenCalledWith(demo.userId, 'demo', 'আবেদন করুন', result.assistantMessage);
-  expect(mocks.call.mock.calls[0][0].parts[0].inlineData.mimeType).toBe('audio/wav');
+  expect(mocks.call.mock.calls[0][0].parts.find((part: { inlineData?: { mimeType: string } }) => part.inlineData)?.inlineData.mimeType).toBe('audio/wav');
 });

@@ -21,3 +21,15 @@ it('preserves the AI_LIMIT code and does not retry a failure', async () => {
   await expect(sendChat(new FormData(), new AbortController().signal)).rejects.toMatchObject({ code: 'AI_LIMIT', message: 'Demo limit reached.' });
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+it('reads the updated budget from failures without an extra usage request', async () => {
+  const fetcher = vi.fn().mockResolvedValue(Response.json({ ok: false, error: { code: 'INTERNAL', message: 'AI unavailable' } }, { status: 500, headers: { 'X-AI-Remaining': '0' } }));
+  vi.stubGlobal('fetch', fetcher);
+  await expect(sendChat(new FormData(), new AbortController().signal)).rejects.toMatchObject({ remaining: 0 });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+it('ignores invalid usage headers instead of inventing a zero balance', async () => {
+  for (const value of ['-1', 'oops', '101']) {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ok: false, error: { code: 'INTERNAL', message: 'AI unavailable' } }, { status: 500, headers: { 'X-AI-Remaining': value } })));
+    await expect(sendChat(new FormData(), new AbortController().signal)).rejects.toMatchObject({ remaining: undefined });
+  }
+});

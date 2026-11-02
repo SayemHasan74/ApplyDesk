@@ -18,36 +18,53 @@ import { resolveProposals } from './resolve';
 
 async function inputParts(input: ChatInput): Promise<Part[]> {
   const parts: Part[] = input.text?.trim() ? [{ text: input.text }] : [];
+  if (input.audio) parts.push({ text: 'Transcribe the attached audio into the transcript field, keeping its original language, then interpret the spoken request using the output contract.' });
   for (const media of [input.image, input.audio]) if (media) parts.push({ inlineData: { mimeType: media.type, data: Buffer.from(await media.arrayBuffer()).toString('base64') } });
   return parts;
 }
 export function shouldGround(input: ChatInput, hasPage: boolean, context: AiContext, user: CurrentUser) {
-  return user.role === 'admin' && context.settings.groundingEnabled && !input.image && !input.audio && !hasPage && (input.text?.length ?? 0) < 300;
+  const text = input.text?.trim() ?? '';
+  const lookup = /\b(search|find|look up|research|recommend|discover|add)\b|খুঁজ|সার্চ/i.test(text);
+  const opportunity = /\b(jobs?|roles?|internships?|certifications?|courses?|bootcamps?)\b|চাকরি|ইন্টার্নশিপ|কোর্স/i.test(text);
+  const local = /\b(to-?dos?|tasks?|backlog|mark|move|delete|remove|update|undo)\b/i.test(text);
+  return user.role === 'admin' && context.settings.groundingEnabled && !input.image && !input.audio && !hasPage && text.length < 300 && lookup && opportunity && !local;
 }
-async function generate(user: CurrentUser, input: ChatInput, context: AiContext, pages: Awaited<ReturnType<typeof readInputPages>>) {
+async function generate(user: CurrentUser, input: ChatInput, context: AiContext, pages: Awaited<ReturnType<typeof readInputPages>>, signal: AbortSignal) {
   const grounded = shouldGround(input, pages.pages.length > 0, context, user);
   const parts = await inputParts(input);
   const systemInstruction = buildPrompt(context.lists, pages.pages);
   let previous = '';
   const sources = new Set(pages.sources);
   for (let attempt = 0; attempt < 2; attempt++) {
-    const repair = attempt ? [{ text: `Return ONLY valid JSON matching the schema; here is your previous answer: ${previous.slice(0, 6000)}` }] : [];
-    const response = await callGemini({ user, systemInstruction, parts: [...parts, ...repair], grounded });
+    signal.throwIfAborted();
+    const repair = attempt ? [{ text: `Return ONLY valid JSON matching the schema.${input.audio ? ' Include the full audio transcript.' : ''} Here is your previous answer: ${previous.slice(0, 6000)}` }] : [];
+    const response = await callGemini({ user, systemInstruction, parts: [...parts, ...repair], grounded, signal });
     response.sources.forEach((source) => sources.add(source));
     previous = response.text;
-    try { return { output: modelOutputSchema.parse(extractJsonObject(previous)), sources: [...sources] }; }
+    try {
+      const output = modelOutputSchema.parse(extractJsonObject(previous));
+      if (input.audio && !output.transcript?.trim()) throw new Error('Missing audio transcript');
+      return { output, sources: [...sources] };
+    }
     catch { if (attempt === 1) break; }
   }
-  return { output: modelOutputSchema.parse({ intent: 'chat', assistant_message: 'I could not read that. Please try again or add it manually.' }), sources: [...sources] };
+  return { output: modelOutputSchema.parse({ intent: 'chat', assistant_message: input.audio ? 'I could not transcribe that recording. Please record again or type your message.' : 'I could not read that. Please try again or add it manually.' }), sources: [...sources] };
 }
 function chatResponse(message: string): ModelOutput {
   return modelOutputSchema.parse({ intent: 'chat', assistant_message: message });
 }
-export async function runAiPipeline(user: CurrentUser, input: ChatInput) {
+export async function runAiPipeline(user: CurrentUser, input: ChatInput, requestSignal?: AbortSignal) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 50_000);
+  const signal = requestSignal ? AbortSignal.any([requestSignal, controller.signal]) : controller.signal;
+  try { return await completePipeline(user, input, signal); }
+  finally { clearTimeout(timer); }
+}
+async function completePipeline(user: CurrentUser, input: ChatInput, signal: AbortSignal) {
   const pages = await readInputPages(input.text ?? '');
   const context = await buildContext(user);
   let generated: Awaited<ReturnType<typeof generate>>;
-  try { generated = await generate(user, input, context, pages); }
+  try { generated = await generate(user, input, context, pages, signal); }
   catch (error) {
     if (!(error instanceof GroundingUnavailable) || !shouldGround(input, pages.pages.length > 0, context, user)) throw error;
     await updateSettings(user.userId, { groundingEnabled: false });
